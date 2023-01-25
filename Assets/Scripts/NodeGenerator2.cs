@@ -5,31 +5,29 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.ExceptionServices;
+using UnityEditor;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.UIElements;
 
 
-public class FieldObject: MonoBehaviour
+public class FieldObject : MonoBehaviour
 {
-    public enum Type { LinearPuller, LinearPusher, SquarePuller, SquarePusher }
-    public Type type = Type.LinearPuller;
+    public int dimension = 2;
     public float strength = 0f;
     public float radius = 0f;
-    public bool isPuller() { return type == Type.LinearPuller || type == Type.SquarePuller; }
-    public bool isLinear() { return type == Type.LinearPuller || type == Type.LinearPusher; }
 }
 public class VelocityField
 {
     List<GameObject> fieldObjects = new List<GameObject>();
-    public GameObject AddFieldObject(FieldObject.Type type, Vector3 pos, float strength, float radius)
+    public GameObject AddFieldObject(Vector3 pos, int dimension, float strength, float radius)
     {
-        GameObject newFObj = new GameObject("Empty");
+        GameObject newFObj = new GameObject("FieldObject");
         newFObj.transform.position = pos;
 
         FieldObject fObjComponent = newFObj.AddComponent<FieldObject>();
-        fObjComponent.type = type;
+        fObjComponent.dimension = dimension;
         fObjComponent.strength = strength;
         fObjComponent.radius = radius;
 
@@ -44,8 +42,10 @@ public class VelocityField
         {
             FieldObject fObj = go.GetComponent<FieldObject>();
             Vector3 dir = go.transform.position - position;
-            float strength = fObj.strength * (fObj.isPuller() ? 1f : -1f);
-            totalVelocity += (strength / (fObj.isLinear() ? dir.magnitude : dir.sqrMagnitude)) * dir.normalized;
+            float strength = fObj.strength;
+            //Inverse r squared law generalizes to inverse r^(dim-1)
+            float denom = Mathf.Pow(dir.magnitude, (float)(fObj.dimension-1));
+            totalVelocity += (strength / denom) * dir.normalized;
             
         }
         return totalVelocity;
@@ -81,10 +81,11 @@ public class NodeGenerator2 : MonoBehaviour
 {
     [SerializeField] private bool drawDebugVisualizations = true;
     [SerializeField] private Camera mainCamera;
-    private static int numSideNodes = 27;
+    private static int numSideNodes = 25;
     private static int numNodes = numSideNodes * numSideNodes;
 
-    private static float nodeDistance = 0.4f;
+    private static float nodeDistance = 0.37f;
+    private static Vector3 nodeOffset = Vector3.up * nodeDistance;
     private static float diagDistance = Mathf.Sqrt(2 * nodeDistance * nodeDistance);
     private static float maxDistance = nodeDistance * 1.8f;
     public static float minDistance = nodeDistance * 0.2f;
@@ -95,6 +96,12 @@ public class NodeGenerator2 : MonoBehaviour
     private List<GameObject> objects = new List<GameObject>();
     private List<Connection> connections = new List<Connection>();
     private VelocityField velocityField = new VelocityField();
+
+    private const float maxFuel = 4000.0f;
+    private float fuel = maxFuel;
+    private const float maxShield = 100.0f;
+    private float shield = maxShield;
+    private const float maxSafeSpeed = 1.1f;
 
     // Start is called before the first frame update
     void Start()
@@ -115,8 +122,9 @@ public class NodeGenerator2 : MonoBehaviour
                 }
             }
         }
-        velocityField.AddFieldObject(FieldObject.Type.LinearPuller, new Vector3(0.92f, 0.91f, 0), 1.5f, 0.6f);
-        velocityField.AddFieldObject(FieldObject.Type.LinearPuller, new Vector3(-0.92f, -0.91f, 0), 1.5f, 0.6f);
+        velocityField.AddFieldObject(new Vector3(0.92f, 0.91f, 0), 2, 1.5f, 0.6f);
+        velocityField.AddFieldObject(new Vector3(-0.92f, -0.91f, 0), 2, 1.5f, 0.6f);
+        AddObject(new Vector3(-3.4f, 3.4f, 0));
     }
 
     private void GenerateNodes()
@@ -127,7 +135,7 @@ public class NodeGenerator2 : MonoBehaviour
             int rawY = i / numSideNodes;
             float x = (float)(rawX - numSideNodes / 2) * nodeDistance;
             float y = (float)(rawY - numSideNodes / 2) * nodeDistance;
-            AddNode(new Vector3(x, y, 0), IsUnmoving(rawX, rawY));
+            AddNode(new Vector3(x, y, 0) + nodeOffset, IsUnmoving(rawX, rawY));
         }
     }
 
@@ -136,25 +144,8 @@ public class NodeGenerator2 : MonoBehaviour
         return rawX == 0 || rawY == 0 || rawX == numSideNodes - 1 || rawY == numSideNodes - 1;
     }
 
-    // Update is called once per frame
-    private int mouseDownFrames = 0;
     void Update()
     {
-        if (Input.GetMouseButton(0))
-        {
-            Vector3 mousePos = mainCamera.ScreenToWorldPoint(Input.mousePosition);
-            mousePos.z = 0;
-            if(mouseDownFrames == 0)
-            {
-                AddObject(mousePos);
-            }
-            ++mouseDownFrames;
-        }
-        else
-        {
-            mouseDownFrames = 0;
-        }
-
         foreach (GameObject node in nodes)
         {
             node.GetComponent<PosNode>().SetVel(velocityField.velocityAt(node.transform.position));
@@ -180,20 +171,13 @@ public class NodeGenerator2 : MonoBehaviour
             }
         }
 
-        float fspeed = 1.1f;
-        float rspeed = 2.1f;
+        float fspeed = 2.0f;
+        float rspeed = 2.0f;
         foreach (GameObject obj in objects)
         {
             PosObj posObj = obj.GetComponent<PosObj>();
+            float totalThrust = 0;
 
-            if (Input.GetKey(KeyCode.UpArrow))
-            {
-                posObj.AddThrust(fspeed);
-            }
-            if (Input.GetKey(KeyCode.DownArrow))
-            {
-                posObj.AddThrust(-fspeed);
-            }
             if (Input.GetKey(KeyCode.LeftArrow))
             {
                 posObj.Rotate(rspeed);
@@ -202,35 +186,57 @@ public class NodeGenerator2 : MonoBehaviour
             {
                 posObj.Rotate(-rspeed);
             }
+            if (fuel > 0)
+            {
+                if (Input.GetKey(KeyCode.UpArrow))
+                {
+                    posObj.AddThrust(fspeed);
+                    totalThrust += fspeed;
+                }
+                if (Input.GetKey(KeyCode.DownArrow))
+                {
+                    posObj.AddThrust(-fspeed);
+                    totalThrust += fspeed;
+                }
+                if (Input.GetKeyDown(KeyCode.Space))
+                {
+                    posObj.AddThrust(fspeed * 70.0f);
+                    totalThrust += fspeed * 70.0f;
+                }
+                fuel -= totalThrust;
+            }
 
             Vector3 prevPosition = obj.transform.position;
             Vector3 nextGridPos = posObj.CalculatePosition();
-            bool shouldRebase = false;
-
-            GameObject closest = velocityField.ClosestFieldObject(nextGridPos);
-            FieldObject fieldObj = closest.GetComponent<FieldObject>();
-            Vector3 dist = nextGridPos - closest.transform.position;
-            if (dist.magnitude < fieldObj.radius)
-            {
-                Vector3? intersection = LineSegmentCircleIntersection(closest.transform.position, fieldObj.radius, prevPosition, nextGridPos);
-                if (intersection != null)
-                {
-                    nextGridPos = intersection.Value;
-                    shouldRebase = true;
-                }
-            }
 
             Vector3 gridMovement = nextGridPos - prevPosition;
             posObj.Integrate(gridMovement);
-            shouldRebase |= posObj.ShouldRebase();
+
+
+            GameObject closest = velocityField.ClosestFieldObject(obj.transform.position);
+            FieldObject fieldObj = closest.GetComponent<FieldObject>();
+            Vector3 dist = obj.transform.position - closest.transform.position;
+            if (dist.magnitude < fieldObj.radius)
+            {
+                Vector3? intersection = LineSegmentCircleIntersection(closest.transform.position, fieldObj.radius, prevPosition, obj.transform.position);
+                if (intersection != null)
+                {
+                    shield -= Mathf.Max(0, posObj.GetSpeed() - maxSafeSpeed) * 10.0f;
+                    posObj.HandleCollisionAt(intersection.Value);
+                }
+            }
             
-            if (shouldRebase)
+            if (posObj.ShouldRebase())
             {
                 posObj.Rebase(ClosestNodes(obj.transform.position));
             }
         }
 
         nodes.RemoveAll(x => x.GetComponent<PosNode>().isDead);
+        if (shield < 0)
+        {
+            objects.Clear();
+        }
 
         DebugDraw();
     }
@@ -299,7 +305,7 @@ public class NodeGenerator2 : MonoBehaviour
 
     private GameObject AddNode(Vector3 pos, bool isUnmoving = false)
     {
-        GameObject newNode = new GameObject("Empty");
+        GameObject newNode = new GameObject("GridNode");
         newNode.transform.position = pos;
         PosNode nodeComponent = newNode.AddComponent<PosNode>();
         nodeComponent.isUnmoving = isUnmoving;
@@ -309,7 +315,7 @@ public class NodeGenerator2 : MonoBehaviour
 
     private GameObject AddObject(Vector3 pos)
     {
-        GameObject newObj = new GameObject("Empty");
+        GameObject newObj = new GameObject("GridObject");
         newObj.transform.position = pos;
         PosObj posObj = newObj.AddComponent<PosObj>();
         posObj.prevPos = pos;
@@ -325,7 +331,7 @@ public class NodeGenerator2 : MonoBehaviour
 
         foreach (Connection c in connections)
         {
-            Debug.DrawLine(c.a.transform.position, c.b.transform.position, Color.gray);
+            Debug.DrawLine(c.a.transform.position, c.b.transform.position, new Color(0.35f,0.35f,0.35f,1));
         }
         foreach (GameObject n in nodes)
         {
@@ -342,5 +348,8 @@ public class NodeGenerator2 : MonoBehaviour
     {
         Gizmos.color = new Color(1, 0, 0, 0.5f);
         velocityField.DebugDrawGizmos();
+        GUIStyle style = GUI.skin.label;
+        style.fontSize = 6;
+        Handles.Label(new Vector3(-4.3f, -4.4f, 0), "Fuel: " + ((int)fuel).ToString() + "kg    Shield: " + ((int)shield).ToString() + "%", style);
     }
 }

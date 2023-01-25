@@ -41,7 +41,7 @@ public class PosNode : MonoBehaviour
 
     public void DebugDraw()
     {
-        Color color = isUnmoving ? Color.red : Color.white;
+        Color color = isUnmoving ? Color.red : Color.gray;
         float raySize = 0.04f;
         Debug.DrawRay(transform.position - new Vector3(0, raySize * 0.5f, 0), new Vector3(0, raySize, 0), color);
         Debug.DrawRay(transform.position - new Vector3(raySize * 0.5f, 0, 0), new Vector3(raySize, 0, 0), color);

@@ -18,6 +18,10 @@ public class PosObj : MonoBehaviour
     private bool needsRebase = false;
     public Vector3 prevPos = Vector3.zero;
 
+    public float GetSpeed()
+    {
+        return vel.magnitude;
+    }
     public void AddThrust(float strength)
     {
         pull += transform.up * strength;
@@ -46,11 +50,15 @@ public class PosObj : MonoBehaviour
         transform.RotateAround(transform.position, Vector3.forward, speed);
     }
 
+    public void HandleCollisionAt(Vector3 collisionPos)
+    {
+        transform.position = collisionPos;
+        needsRebase = true;
+    }
     // Start is called before the first frame update
     void Start()
     {
         transform.up = Vector3.up;
-        AddThrust(60.0f);
     }
 
     // Update is called once per frame
@@ -65,6 +73,7 @@ public class PosObj : MonoBehaviour
         closestNodes = closestList.Take(numNodes).ToArray();
         Vector3 avgPos = (closestNodes[0].transform.position + closestNodes[1].transform.position + closestNodes[2].transform.position)/3;
         offset = transform.position - avgPos;
+        needsRebase = false;
     }
 
     public Vector3 CalculatePosition()
@@ -73,44 +82,7 @@ public class PosObj : MonoBehaviour
         return avgPos + offset;
     }
 
-
-
     public void Rebase2(List<GameObject> closestList)
-    {
-        Vector3 pos = transform.position;
-        float P1 = pos.x;
-        float P2 = pos.y;
-
-        float A1 = 0;
-        float A2 = 0;
-        float B1 = 0;
-        float B2 = 0;
-        float C1 = 0;
-        float C2 = 0;
-
-        int skipNodes = 0;
-
-        //Skip colinear nodes
-        while (skipNodes < closestList.Count - 2 && (B1 * C2 == B2 * C1 || B2 * C1 == B1 * C2 || C1 == 0))
-        {
-            A1 = closestList[skipNodes].transform.position.x;
-            A2 = closestList[skipNodes].transform.position.y;
-            B1 = closestList[skipNodes + 1].transform.position.x;
-            B2 = closestList[skipNodes + 1].transform.position.y;
-            C1 = closestList[skipNodes + 2].transform.position.x;
-            C2 = closestList[skipNodes + 2].transform.position.y;
-            ++skipNodes;
-        }
-
-        closestNodes[0] = closestList[skipNodes - 1];
-        closestNodes[1] = closestList[skipNodes];
-        closestNodes[2] = closestList[skipNodes + 1];
-
-        coefficients[0] = (-A1 * C2 + A2 * C1 - 3 * C1 * P2 + 3 * C2 * P1) / (B1 * C2 - B2 * C1);
-        coefficients[1] = (-A1 * B2 + A2 * B1 - 3 * B1 * P2 + 3 * B2 * P1) / (B2 * C1 - B1 * C2);
-    }
-
-    public void Rebase3(List<GameObject> closestList)
     {
         /*
             Currently supports 2D only
@@ -168,11 +140,9 @@ public class PosObj : MonoBehaviour
         coefficients[0] = (-A1 * C2 + A2 * C1 - C1 * P2 + C2 * P1) / (B1 * C2 - B2 * C1);
         coefficients[1] = (-A1 * B2 + A2 * B1 - B1 * P2 + B2 * P1) / (B2 * C1 - B1 * C2);
 
-        concave = IsConcave();
-
         needsRebase = false;
 
-        Vector3 valueToCheck = CalculatePosition3();
+        Vector3 valueToCheck = CalculatePosition2();
         Assert.AreApproximatelyEqual(pos.x, valueToCheck.x);
         Assert.AreApproximatelyEqual(pos.y, valueToCheck.y);
     }
@@ -180,20 +150,6 @@ public class PosObj : MonoBehaviour
     public Vector3 CalculatePosition2()
     {
         return (closestNodes[0].transform.position + closestNodes[1].transform.position * coefficients[0] + closestNodes[2].transform.position * coefficients[1]) / 3;
-    }
-
-    public Vector3 CalculatePosition3()
-    {
-        Vector3 basis1 = closestNodes[1].transform.position - closestNodes[0].transform.position;
-        Vector3 basis2 = closestNodes[2].transform.position - closestNodes[0].transform.position;
-        return closestNodes[0].transform.position + basis1 * coefficients[0] + basis2 * coefficients[1];
-    }
-
-    public bool IsConcave()
-    {
-        Vector3 basis1 = closestNodes[1].transform.position - closestNodes[0].transform.position;
-        Vector3 basis2 = closestNodes[2].transform.position - closestNodes[0].transform.position;
-        return Vector3.Cross(basis1, basis2).z > 0f;
     }
 
     public bool PointInsideTriangle2D(Vector3 p, Vector3 t1, Vector3 t2, Vector3 t3)
@@ -237,8 +193,8 @@ public class PosObj : MonoBehaviour
         Gizmos.color = new UnityEngine.Color(0, 1, 0, 0.7f);
         Gizmos.DrawSphere(transform.position, size);
 
-        size = 0.1f;
-        Gizmos.color = new UnityEngine.Color(0, 0, 0, 0.7f);
+        size = 0.07f;
+        Gizmos.color = UnityEngine.Color.white;
         foreach (GameObject cn in closestNodes)
         {
             Gizmos.DrawSphere(cn.transform.position, size);
