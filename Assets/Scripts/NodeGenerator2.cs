@@ -125,7 +125,7 @@ public class NodeGenerator2 : MonoBehaviour
         }
         //velocityField.AddFieldObject(new Vector3(1.72f, 1.71f, 0), 2, 1.5f, 0.6f);
         //velocityField.AddFieldObject(new Vector3(-1.72f, -1.71f, 0), 2, 1.5f, 0.6f);
-        AddObject(new Vector3(-3.4f, 3.4f, 0));
+        AddObject(Vector3.zero);
     }
 
     private void GenerateNodes()
@@ -247,7 +247,11 @@ public class NodeGenerator2 : MonoBehaviour
             
             if (posObj.ShouldRebase())
             {
-                posObj.Rebase(ClosestNodes(obj.transform.position));
+                List<GameObject> closestNodes = ClosestNodes(obj.transform.position);
+                if (closestNodes.Count > 2)
+                {
+                    posObj.Rebase(closestNodes);
+                }
             }
         }
 
@@ -258,8 +262,10 @@ public class NodeGenerator2 : MonoBehaviour
         }
         UpdateFPSCounter();
 
-        mainCamera.transform.position = new Vector3(objects[0].transform.position.x, objects[0].transform.position.y, mainCamera.transform.position.z);
-
+        if (objects.Count > 0)
+        {
+            mainCamera.transform.position = new Vector3(objects[0].transform.position.x, objects[0].transform.position.y, mainCamera.transform.position.z);
+        }
         DebugDraw();
     }
 

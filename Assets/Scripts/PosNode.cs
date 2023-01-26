@@ -44,9 +44,14 @@ public class PosNode : MonoBehaviour
     public void DebugDraw()
     {
         Color color = isUnmoving ? Color.red : Color.gray;
-        float raySize = 0.04f;
-        Debug.DrawRay(transform.position - new Vector3(0, raySize * 0.5f, 0), new Vector3(0, raySize, 0), color);
-        Debug.DrawRay(transform.position - new Vector3(raySize * 0.5f, 0, 0), new Vector3(raySize, 0, 0), color);
+        float raySize = 0.16f;
+        Vector3 dir = vel;
+        if(dir.sqrMagnitude == 0)
+        {
+            dir = Vector3.right * 0.25f;
+        }
+        dir = Vector3.ClampMagnitude(dir * raySize, 0.15f);
+        Debug.DrawRay(transform.position - dir*0.5f, dir, color);
     }
 
     // Start is called before the first frame update

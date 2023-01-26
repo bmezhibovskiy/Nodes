@@ -14,7 +14,7 @@ public class SpatialHasher
     }
 
     private const float cellSize = 0.5f;
-    private const float totalSideLength = 17f;
+    private const float totalSideLength = 20f;
 
     private const float inverseCellSize = 1/cellSize;
     private const int numSideCells = (int)(totalSideLength * inverseCellSize);
