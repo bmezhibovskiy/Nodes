@@ -96,6 +96,7 @@ public class NodeGenerator2 : MonoBehaviour
     private List<GameObject> objects = new List<GameObject>();
     private List<Connection> connections = new List<Connection>();
     private VelocityField velocityField = new VelocityField();
+    private SpatialHasher spatialHasher = new SpatialHasher();
 
     private const float maxFuel = 4000.0f;
     private float fuel = maxFuel;
@@ -154,6 +155,11 @@ public class NodeGenerator2 : MonoBehaviour
             if (Vector3.Distance(closest.transform.position,node.transform.position) < fieldObj.radius)
             {
                 node.GetComponent<PosNode>().isDead = true;
+                spatialHasher.RemoveObject(node);
+            }
+            else
+            {
+                spatialHasher.Update(node);
             }
         }
 
@@ -237,7 +243,6 @@ public class NodeGenerator2 : MonoBehaviour
         {
             objects.Clear();
         }
-
         DebugDraw();
     }
 
@@ -291,16 +296,31 @@ public class NodeGenerator2 : MonoBehaviour
 
     private List<GameObject> ClosestNodes(Vector3 pos)
     {
-        List<GameObject> prunedNodes = new List<GameObject>(nodes);
-        prunedNodes.RemoveAll(x => x.GetComponent<PosNode>().isDead);
-        List<GameObject> sortedNodes = new List<GameObject>(prunedNodes);
-        sortedNodes.Sort((a, b) =>
+        if (Input.GetKey(KeyCode.LeftAlt))
         {
-            float mA = (a.transform.position - pos).magnitude;
-            float mB = (b.transform.position - pos).magnitude;
-            return mA.CompareTo(mB);
-        });
-        return sortedNodes;
+            List<GameObject> prunedNodes = new List<GameObject>(nodes);
+            prunedNodes.RemoveAll(x => x.GetComponent<PosNode>().isDead);
+            List<GameObject> sortedNodes = new List<GameObject>(prunedNodes);
+            sortedNodes.Sort((a, b) =>
+            {
+                float mA = (a.transform.position - pos).magnitude;
+                float mB = (b.transform.position - pos).magnitude;
+                return mA.CompareTo(mB);
+            });
+            return sortedNodes;
+        }
+        else
+        {
+
+            List<GameObject> sortedNodes = spatialHasher.ClosestObjects(pos, 6);
+            sortedNodes.Sort((a, b) =>
+            {
+                float mA = (a.transform.position - pos).magnitude;
+                float mB = (b.transform.position - pos).magnitude;
+                return mA.CompareTo(mB);
+            });
+            return sortedNodes;
+        }
     }
 
     private GameObject AddNode(Vector3 pos, bool isUnmoving = false)
@@ -310,6 +330,7 @@ public class NodeGenerator2 : MonoBehaviour
         PosNode nodeComponent = newNode.AddComponent<PosNode>();
         nodeComponent.isUnmoving = isUnmoving;
         nodes.Add(newNode);
+        spatialHasher.AddObject(newNode);
         return newNode;
     }
 
@@ -350,6 +371,6 @@ public class NodeGenerator2 : MonoBehaviour
         velocityField.DebugDrawGizmos();
         GUIStyle style = GUI.skin.label;
         style.fontSize = 6;
-        Handles.Label(new Vector3(-4.3f, -4.4f, 0), "Fuel: " + ((int)fuel).ToString() + "kg    Shield: " + ((int)shield).ToString() + "%", style);
+        Handles.Label(new Vector3(-4.3f, -4.4f, 0), "Fuel: " + ((int)fuel).ToString() + "kg    Shield: " + ((int)shield).ToString() + "%    FPS:" + (int)(1f/Time.deltaTime), style);
     }
 }

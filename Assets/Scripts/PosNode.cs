@@ -10,6 +10,8 @@ public class PosNode : MonoBehaviour
     private Vector3 vel = new Vector3();
     private const float maxSpeed = 10.0f;
 
+    public SpatialHasher.Bucket bucket;
+
     public void AddPull(Vector3 newPull)
     {
         pull += newPull;
