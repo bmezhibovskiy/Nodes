@@ -13,8 +13,8 @@ public class SpatialHasher
         public List<GameObject> objects = new List<GameObject>();
     }
 
-    private const float cellSize = 0.4f;
-    private const float totalSideLength = 10f;
+    private const float cellSize = 0.5f;
+    private const float totalSideLength = 17f;
 
     private const float inverseCellSize = 1/cellSize;
     private const int numSideCells = (int)(totalSideLength * inverseCellSize);

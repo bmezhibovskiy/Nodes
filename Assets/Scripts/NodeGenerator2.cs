@@ -81,13 +81,13 @@ public class NodeGenerator2 : MonoBehaviour
 {
     [SerializeField] private bool drawDebugVisualizations = true;
     [SerializeField] private Camera mainCamera;
-    private static int numSideNodes = 25;
+    private static int numSideNodes = 37;
     private static int numNodes = numSideNodes * numSideNodes;
 
-    private static float nodeDistance = 0.37f;
+    private static float nodeDistance = 0.45f;
     private static Vector3 nodeOffset = Vector3.up * nodeDistance;
     private static float diagDistance = Mathf.Sqrt(2 * nodeDistance * nodeDistance);
-    private static float maxDistance = nodeDistance * 1.8f;
+    private static float maxDistance = nodeDistance * 2.0f;
     public static float minDistance = nodeDistance * 0.2f;
     private static float compressionFactor = 1.0f;
 
@@ -123,8 +123,8 @@ public class NodeGenerator2 : MonoBehaviour
                 }
             }
         }
-        velocityField.AddFieldObject(new Vector3(1.12f, 1.11f, 0), 2, 1.5f, 0.6f);
-        velocityField.AddFieldObject(new Vector3(-1.12f, -1.11f, 0), 2, 1.5f, 0.6f);
+        //velocityField.AddFieldObject(new Vector3(1.72f, 1.71f, 0), 2, 1.5f, 0.6f);
+        //velocityField.AddFieldObject(new Vector3(-1.72f, -1.71f, 0), 2, 1.5f, 0.6f);
         AddObject(new Vector3(-3.4f, 3.4f, 0));
     }
 
@@ -147,19 +147,29 @@ public class NodeGenerator2 : MonoBehaviour
 
     void Update()
     {
+        if(Input.GetMouseButtonDown(0))
+        {
+            Vector3 mousePos = mainCamera.ScreenToWorldPoint(Input.mousePosition);
+            mousePos.z = 0;
+            velocityField.AddFieldObject(mousePos, 2, 1.5f, 0.6f);
+        }
+
         foreach (GameObject node in nodes)
         {
             node.GetComponent<PosNode>().SetVel(velocityField.velocityAt(node.transform.position));
             GameObject closest = velocityField.ClosestFieldObject(node.transform.position);
-            FieldObject fieldObj = closest.GetComponent<FieldObject>();
-            if (Vector3.Distance(closest.transform.position,node.transform.position) < fieldObj.radius)
+            if (closest != null)
             {
-                node.GetComponent<PosNode>().isDead = true;
-                spatialHasher.RemoveObject(node);
-            }
-            else
-            {
-                spatialHasher.Update(node);
+                FieldObject fieldObj = closest.GetComponent<FieldObject>();
+                if (Vector3.Distance(closest.transform.position, node.transform.position) < fieldObj.radius)
+                {
+                    node.GetComponent<PosNode>().isDead = true;
+                    spatialHasher.RemoveObject(node);
+                }
+                else
+                {
+                    spatialHasher.Update(node);
+                }
             }
         }
 
@@ -220,15 +230,18 @@ public class NodeGenerator2 : MonoBehaviour
 
 
             GameObject closest = velocityField.ClosestFieldObject(obj.transform.position);
-            FieldObject fieldObj = closest.GetComponent<FieldObject>();
-            Vector3 dist = obj.transform.position - closest.transform.position;
-            if (dist.magnitude < fieldObj.radius)
+            if (closest != null)
             {
-                Vector3? intersection = LineSegmentCircleIntersection(closest.transform.position, fieldObj.radius, prevPosition, obj.transform.position);
-                if (intersection != null)
+                FieldObject fieldObj = closest.GetComponent<FieldObject>();
+                Vector3 dist = obj.transform.position - closest.transform.position;
+                if (dist.magnitude < fieldObj.radius)
                 {
-                    shield -= Mathf.Max(0, posObj.GetSpeed() - maxSafeSpeed) * 10.0f;
-                    posObj.HandleCollisionAt(intersection.Value);
+                    Vector3? intersection = LineSegmentCircleIntersection(closest.transform.position, fieldObj.radius, prevPosition, obj.transform.position);
+                    if (intersection != null)
+                    {
+                        shield -= Mathf.Max(0, posObj.GetSpeed() - maxSafeSpeed) * 10.0f;
+                        posObj.HandleCollisionAt(intersection.Value);
+                    }
                 }
             }
             
@@ -244,6 +257,9 @@ public class NodeGenerator2 : MonoBehaviour
             objects.Clear();
         }
         UpdateFPSCounter();
+
+        mainCamera.transform.position = new Vector3(objects[0].transform.position.x, objects[0].transform.position.y, mainCamera.transform.position.z);
+
         DebugDraw();
     }
 
@@ -385,10 +401,12 @@ public class NodeGenerator2 : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        Gizmos.color = new Color(1, 0, 0, 0.5f);
+        Gizmos.color = new Color(0.7f, 0.5f, 0.1f, 0.5f);
         velocityField.DebugDrawGizmos();
         GUIStyle style = GUI.skin.label;
         style.fontSize = 6;
-        Handles.Label(new Vector3(-4.3f, -4.4f, 0), "Fuel: " + ((int)fuel).ToString() + "kg    Shield: " + ((int)shield).ToString() + "%    FPS:" + (int)(fps), style);
+        Vector3 camPos = mainCamera.transform.position;
+        Vector3 labelPos = new Vector3(camPos.x-4.3f, camPos.y-4.4f, 0);
+        Handles.Label(labelPos, "Fuel: " + ((int)fuel).ToString() + "kg    Shield: " + ((int)shield).ToString() + "%    FPS:" + (int)(fps), style);
     }
 }

@@ -184,7 +184,7 @@ public class PosObj : MonoBehaviour
     public void DebugDraw()
     {
         Debug.DrawLine(transform.position, transform.position + transform.up * 0.5f, UnityEngine.Color.green);
-        Debug.DrawLine(transform.position, transform.position + vel * 0.5f, UnityEngine.Color.red);
+        Debug.DrawLine(transform.position, transform.position + vel * 0.5f, new UnityEngine.Color(0.6f,0,0));
     }
 
     public void OnDrawGizmos()
