@@ -5,79 +5,73 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Assertions;
 
+public class SpatiallyHashed: MonoBehaviour
+{
+    public SpatialHasher.Bucket bucket;
+}
+
 public class SpatialHasher
 {
     public class Bucket
     {
-        public int hash = -1;
         public List<GameObject> objects = new List<GameObject>();
     }
 
-    private const float cellSize = 0.5f;
-    private const float totalSideLength = 20f;
+    private float cellSize;
+    private float totalSideLength;
+    private float inverseCellSize;
+    private int numSideCells;
+    private int numCells;
+    private Bucket[] buckets;
+    private int[] spiralCoords;
 
-    private const float inverseCellSize = 1/cellSize;
-    private const int numSideCells = (int)(totalSideLength * inverseCellSize);
-    private const int numCells = numSideCells * numSideCells;
+    public SpatialHasher(float cellSize, float totalSideLength)
+    {
+        this.cellSize = cellSize;
+        this.totalSideLength = totalSideLength;
 
-    private Bucket[] buckets = new Bucket[numCells];
-    private int[] spiralCoords = Spiral.GenerateSpiralCoords(numSideCells);
+        this.inverseCellSize = 1 / cellSize;
+        this.numSideCells = (int)(totalSideLength * inverseCellSize);
+        this.numCells = numSideCells * numSideCells;
 
-    public SpatialHasher()
-    { 
+        this.buckets = new Bucket[numCells];
         for(int i = 0; i < numCells; i++) { buckets[i] = new Bucket(); }
+
+        this.spiralCoords = Spiral.GenerateSpiralCoords(numSideCells);
     }
 
-    public int Hash(Vector3 point)
+    public void AddObject(GameObject obj)
     {
-        int x = (int)(point.x * inverseCellSize);
-        int y = (int)(point.y * inverseCellSize);
-        int hash = x + y * numSideCells;
-        hash = Math.Clamp(hash, 0, numCells-1);
-        return hash;
+        SpatiallyHashed hashed = obj.AddComponent<SpatiallyHashed>();
+        Bucket b = buckets[Hash(obj.transform.position)];
+        b.objects.Add(obj);
+        hashed.bucket = b;
     }
 
-    public Bucket BucketAt(Vector3 point)
+    public void UpdateObject(GameObject obj)
     {
-        return buckets[Hash(point)];
-    }
-
-    public void Update(GameObject obj)
-    {
-        PosNode posNode = obj.GetComponent<PosNode>();
-        if (posNode != null)
+        SpatiallyHashed hashed = obj.GetComponent<SpatiallyHashed>();
+        if (hashed != null)
         {
-            Bucket currentBucket = posNode.bucket;
+            Bucket currentBucket = hashed.bucket;
             Bucket newBucket = buckets[Hash(obj.transform.position)];
             if(currentBucket != newBucket)
             {
                 currentBucket.objects.Remove(obj);
                 newBucket.objects.Add(obj);
-                posNode.bucket = newBucket;
+                hashed.bucket = newBucket;
             }
-        }
-    }
-
-    public void AddObject(GameObject obj)
-    {
-        PosNode posNode = obj.GetComponent<PosNode>();
-        if (posNode != null)
-        {
-            int hash = Hash(obj.transform.position);
-            Bucket b = buckets[hash];
-            b.hash = hash;
-            b.objects.Add(obj);
-            posNode.bucket = b;
         }
     }
 
     public void RemoveObject(GameObject obj)
     {
-        PosNode posNode = obj.GetComponent<PosNode>();
-        if (posNode != null)
+        SpatiallyHashed hashed = obj.GetComponent<SpatiallyHashed>();
+        if (hashed != null)
         {
-            Bucket currentBucket = posNode.bucket;
+            Bucket currentBucket = hashed.bucket;
             currentBucket.objects.Remove(obj);
+            MonoBehaviour.Destroy(hashed);
         }
     }
 
@@ -110,6 +104,14 @@ public class SpatialHasher
         return closest;
     }
 
+    private int Hash(Vector3 point)
+    {
+        int x = (int)(point.x * inverseCellSize);
+        int y = (int)(point.y * inverseCellSize);
+        int hash = x + y * numSideCells;
+        hash = Math.Clamp(hash, 0, numCells - 1);
+        return hash;
+    }
 }
 
 //Adapted from https://stackoverflow.com/a/33639875/1864591

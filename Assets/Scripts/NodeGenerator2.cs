@@ -1,81 +1,6 @@
-using JetBrains.Annotations;
-using Newtonsoft.Json.Serialization;
-using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.ExceptionServices;
 using UnityEditor;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
-using UnityEngine.Assertions;
-using UnityEngine.UIElements;
-
-
-public class FieldObject : MonoBehaviour
-{
-    public int dimension = 2;
-    public float strength = 0f;
-    public float radius = 0f;
-}
-public class VelocityField
-{
-    List<GameObject> fieldObjects = new List<GameObject>();
-    public GameObject AddFieldObject(Vector3 pos, int dimension, float strength, float radius)
-    {
-        GameObject newFObj = new GameObject("FieldObject");
-        newFObj.transform.position = pos;
-
-        FieldObject fObjComponent = newFObj.AddComponent<FieldObject>();
-        fObjComponent.dimension = dimension;
-        fObjComponent.strength = strength;
-        fObjComponent.radius = radius;
-
-        fieldObjects.Add(newFObj);
-        return newFObj;
-    }
-
-    public Vector3 velocityAt(Vector3 position)
-    {
-        Vector3 totalVelocity = new Vector3();
-        foreach (GameObject go in fieldObjects)
-        {
-            FieldObject fObj = go.GetComponent<FieldObject>();
-            Vector3 dir = go.transform.position - position;
-            float strength = fObj.strength;
-            //Inverse r squared law generalizes to inverse r^(dim-1)
-            float denom = Mathf.Pow(dir.magnitude, (float)(fObj.dimension-1));
-            totalVelocity += (strength / denom) * dir.normalized;
-            
-        }
-        return totalVelocity;
-    }
-
-    public GameObject ClosestFieldObject(Vector3 pos)
-    {
-        float distance = float.MaxValue;
-        GameObject current = null;
-        foreach (GameObject go in fieldObjects)
-        {
-            float currentDistance = Vector3.Distance(go.transform.position, pos);
-            if(currentDistance < distance)
-            {
-                distance = currentDistance;
-                current = go;
-            }
-        }
-        return current;
-    }
-
-    public void DebugDrawGizmos()
-    {
-        foreach (GameObject go in fieldObjects)
-        {
-            FieldObject fieldObj = go.GetComponent<FieldObject>();
-            Gizmos.DrawSphere(go.transform.position, fieldObj.radius);
-        }
-    }
-}
 
 public class NodeGenerator2 : MonoBehaviour
 {
@@ -91,12 +16,11 @@ public class NodeGenerator2 : MonoBehaviour
     public static float minDistance = nodeDistance * 0.2f;
     private static float compressionFactor = 1.0f;
 
-    //private int numRecentlyDeletedNodes = 0;
     private List<GameObject> nodes = new List<GameObject>(numNodes);
-    private List<GameObject> objects = new List<GameObject>();
+    private GameObject ship;
     private List<Connection> connections = new List<Connection>();
     private VelocityField velocityField = new VelocityField();
-    private SpatialHasher spatialHasher = new SpatialHasher();
+    private SpatialHasher spatialHasher = new SpatialHasher(nodeDistance * 1.25f, nodeDistance * (float)numSideNodes * 1.25f);
 
     private const float maxFuel = 4000.0f;
     private float fuel = maxFuel;
@@ -108,24 +32,9 @@ public class NodeGenerator2 : MonoBehaviour
     void Start()
     {
         GenerateNodes();
-        foreach (GameObject unmovingNode in nodes)
-        {
-            if (!unmovingNode.GetComponent<PosNode>().isUnmoving) { continue; }
-
-            List<GameObject> closest = ClosestNodes(unmovingNode.transform.position);
-            foreach(GameObject closestNode in closest)
-            {
-                if(!closestNode.GetComponent<PosNode>().isUnmoving)
-                {
-                    float dist = Vector3.Distance(closestNode.transform.position, unmovingNode.transform.position);
-                    connections.Add(new Connection(unmovingNode, closestNode, dist));
-                    break;
-                }
-            }
-        }
-        //velocityField.AddFieldObject(new Vector3(1.72f, 1.71f, 0), 2, 1.5f, 0.6f);
-        //velocityField.AddFieldObject(new Vector3(-1.72f, -1.71f, 0), 2, 1.5f, 0.6f);
-        AddObject(Vector3.zero);
+        GenerateConnections();
+        ship = AddObject(Vector3.zero);
+        velocityField.AddFieldObject(new Vector3(2,2,0), 2, 1.5f, 0.6f);
     }
 
     private void GenerateNodes()
@@ -145,15 +54,61 @@ public class NodeGenerator2 : MonoBehaviour
         return rawX == 0 || rawY == 0 || rawX == numSideNodes - 1 || rawY == numSideNodes - 1;
     }
 
+    private void GenerateConnections()
+    {
+        foreach (GameObject unmovingNode in nodes)
+        {
+            if (!unmovingNode.GetComponent<PosNode>().isUnmoving) { continue; }
+
+            List<GameObject> closest = ClosestNodes(unmovingNode.transform.position, false);
+            foreach (GameObject closestNode in closest)
+            {
+                if (!closestNode.GetComponent<PosNode>().isUnmoving)
+                {
+                    float dist = Vector3.Distance(closestNode.transform.position, unmovingNode.transform.position);
+                    connections.Add(new Connection(unmovingNode, closestNode, dist));
+                    break;
+                }
+            }
+        }
+    }
+
     void Update()
     {
-        if(Input.GetMouseButtonDown(0))
+        UpdateMouseClick();
+
+        UpdateNodes();
+
+        UpdateConnections();
+
+        UpdateShip();
+
+        RemoveDeadNodes();
+
+        UpdateFPSCounter();
+
+        DebugDraw();
+    }
+    private void UpdateMouseClick()
+    {
+        if(!Input.GetMouseButtonDown(0)) { return; }
+
+        Vector3 mousePos = mainCamera.ScreenToWorldPoint(Input.mousePosition);
+        mousePos.z = 0;
+        GameObject closestFieldObj = velocityField.ClosestFieldObject(mousePos);
+
+        if (closestFieldObj != null && (mousePos - closestFieldObj.transform.position).magnitude < closestFieldObj.GetComponent<FieldObject>().radius)
         {
-            Vector3 mousePos = mainCamera.ScreenToWorldPoint(Input.mousePosition);
-            mousePos.z = 0;
+            velocityField.RemoveFieldObject(closestFieldObj);
+        }
+        else
+        {
             velocityField.AddFieldObject(mousePos, 2, 1.5f, 0.6f);
         }
 
+    }
+    private void UpdateNodes()
+    {
         foreach (GameObject node in nodes)
         {
             node.GetComponent<PosNode>().SetVel(velocityField.velocityAt(node.transform.position));
@@ -168,11 +123,19 @@ public class NodeGenerator2 : MonoBehaviour
                 }
                 else
                 {
-                    spatialHasher.Update(node);
+                    spatialHasher.UpdateObject(node);
                 }
             }
         }
+    }
 
+    private void RemoveDeadNodes()
+    {
+        nodes.RemoveAll(x => x.GetComponent<PosNode>().isDead);
+    }
+
+    private void UpdateConnections()
+    {
         int connectionIndex = 0;
         while (connectionIndex < connections.Count)
         {
@@ -186,87 +149,85 @@ public class NodeGenerator2 : MonoBehaviour
                 }
             }
         }
+    }
 
+    private void UpdateShip()
+    {
         float fspeed = 2.0f;
         float rspeed = 2.0f;
-        foreach (GameObject obj in objects)
+
+        PosObj posObj = ship.GetComponent<PosObj>();
+        float totalThrust = 0;
+
+        if (Input.GetKey(KeyCode.LeftArrow))
         {
-            PosObj posObj = obj.GetComponent<PosObj>();
-            float totalThrust = 0;
-
-            if (Input.GetKey(KeyCode.LeftArrow))
+            posObj.Rotate(rspeed);
+        }
+        if (Input.GetKey(KeyCode.RightArrow))
+        {
+            posObj.Rotate(-rspeed);
+        }
+        if (fuel > 0)
+        {
+            if (Input.GetKey(KeyCode.UpArrow))
             {
-                posObj.Rotate(rspeed);
+                posObj.AddThrust(fspeed);
+                totalThrust += fspeed;
             }
-            if (Input.GetKey(KeyCode.RightArrow))
+            if (Input.GetKey(KeyCode.DownArrow))
             {
-                posObj.Rotate(-rspeed);
+                posObj.AddThrust(-fspeed);
+                totalThrust += fspeed;
             }
-            if (fuel > 0)
+            if (Input.GetKeyDown(KeyCode.Space))
             {
-                if (Input.GetKey(KeyCode.UpArrow))
-                {
-                    posObj.AddThrust(fspeed);
-                    totalThrust += fspeed;
-                }
-                if (Input.GetKey(KeyCode.DownArrow))
-                {
-                    posObj.AddThrust(-fspeed);
-                    totalThrust += fspeed;
-                }
-                if (Input.GetKeyDown(KeyCode.Space))
-                {
-                    posObj.AddThrust(fspeed * 70.0f);
-                    totalThrust += fspeed * 70.0f;
-                }
-                fuel -= totalThrust;
+                posObj.AddThrust(fspeed * 70.0f);
+                totalThrust += fspeed * 70.0f;
             }
+            fuel -= totalThrust;
+        }
 
-            Vector3 prevPosition = obj.transform.position;
-            Vector3 nextGridPos = posObj.CalculatePosition();
+        Vector3 prevPosition = ship.transform.position;
+        Vector3 nextGridPos = posObj.CalculatePosition();
 
-            Vector3 gridMovement = nextGridPos - prevPosition;
-            posObj.Integrate(gridMovement);
+        Vector3 gridMovement = nextGridPos - prevPosition;
+        posObj.Integrate(gridMovement);
 
 
-            GameObject closest = velocityField.ClosestFieldObject(obj.transform.position);
-            if (closest != null)
+        GameObject closest = velocityField.ClosestFieldObject(ship.transform.position);
+        if (closest != null)
+        {
+            FieldObject fieldObj = closest.GetComponent<FieldObject>();
+            Vector3 dist = ship.transform.position - closest.transform.position;
+            if (dist.magnitude < fieldObj.radius)
             {
-                FieldObject fieldObj = closest.GetComponent<FieldObject>();
-                Vector3 dist = obj.transform.position - closest.transform.position;
-                if (dist.magnitude < fieldObj.radius)
+                Vector3? intersection = LineSegmentCircleIntersection(closest.transform.position, fieldObj.radius, prevPosition, ship.transform.position);
+                if (intersection != null)
                 {
-                    Vector3? intersection = LineSegmentCircleIntersection(closest.transform.position, fieldObj.radius, prevPosition, obj.transform.position);
-                    if (intersection != null)
-                    {
-                        shield -= Mathf.Max(0, posObj.GetSpeed() - maxSafeSpeed) * 10.0f;
-                        posObj.HandleCollisionAt(intersection.Value);
-                    }
-                }
-            }
-            
-            if (posObj.ShouldRebase())
-            {
-                List<GameObject> closestNodes = ClosestNodes(obj.transform.position);
-                if (closestNodes.Count > 2)
-                {
-                    posObj.Rebase(closestNodes);
+                    shield -= Mathf.Max(0, posObj.GetSpeed() - maxSafeSpeed) * 10.0f;
+                    posObj.HandleCollisionAt(intersection.Value);
                 }
             }
         }
 
-        nodes.RemoveAll(x => x.GetComponent<PosNode>().isDead);
+        if (posObj.ShouldRebase())
+        {
+            List<GameObject> closestNodes = ClosestNodes(ship.transform.position);
+            if (closestNodes.Count > 2)
+            {
+                posObj.Rebase(closestNodes);
+            }
+        }
+
         if (shield < 0)
         {
-            objects.Clear();
+            ship = null;
         }
-        UpdateFPSCounter();
 
-        if (objects.Count > 0)
+        if (ship != null)
         {
-            mainCamera.transform.position = new Vector3(objects[0].transform.position.x, objects[0].transform.position.y, mainCamera.transform.position.z);
+            mainCamera.transform.position = new Vector3(ship.transform.position.x, ship.transform.position.y, mainCamera.transform.position.z);
         }
-        DebugDraw();
     }
 
     private Vector3? LineSegmentCircleIntersection(Vector3 center, float r, Vector3 start, Vector3 end)
@@ -317,23 +278,20 @@ public class NodeGenerator2 : MonoBehaviour
         connections.Remove(c);
     }
 
-    private List<GameObject> ClosestNodes(Vector3 pos)
+    private List<GameObject> ClosestNodes(Vector3 pos, bool useSpacialHasher = true)
     {
         List<GameObject> sortedNodes;
 
-        //Not exactly sure why I need to skip the first two frames
-        //But if spacialHasher.ClosestObjects second parameter is less than 5, it messes up some connections
-        //But only in the first two frames.
-        if (Input.GetKey(KeyCode.LeftAlt) || Time.frameCount < 2)
+        if (useSpacialHasher)
         {
-            List<GameObject> prunedNodes = new List<GameObject>(nodes);
-            prunedNodes.RemoveAll(x => x.GetComponent<PosNode>().isDead);
-            sortedNodes = new List<GameObject>(prunedNodes);
+            sortedNodes = spatialHasher.ClosestObjects(pos, 3);
             
         }
         else
         {
-            sortedNodes = spatialHasher.ClosestObjects(pos, 3);
+            List<GameObject> prunedNodes = new List<GameObject>(nodes);
+            prunedNodes.RemoveAll(x => x.GetComponent<PosNode>().isDead);
+            sortedNodes = new List<GameObject>(prunedNodes);
         }
 
         sortedNodes.Sort((a, b) =>
@@ -364,7 +322,6 @@ public class NodeGenerator2 : MonoBehaviour
         posObj.prevPos = pos;
         List<GameObject> closestNodes = ClosestNodes(pos);
         posObj.Rebase(closestNodes);
-        objects.Add(newObj);
         return newObj;
     }
 
@@ -381,10 +338,7 @@ public class NodeGenerator2 : MonoBehaviour
             n.GetComponent<PosNode>().DebugDraw();
         }
         
-        foreach (GameObject o in objects)
-        {
-            o.GetComponent<PosObj>().DebugDraw();
-        }
+        ship.GetComponent<PosObj>().DebugDraw();
     }
 
     private const int maxFpsHistoryCount = 30;
