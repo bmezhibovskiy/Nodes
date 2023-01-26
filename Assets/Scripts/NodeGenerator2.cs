@@ -123,8 +123,8 @@ public class NodeGenerator2 : MonoBehaviour
                 }
             }
         }
-        velocityField.AddFieldObject(new Vector3(0.92f, 0.91f, 0), 2, 1.5f, 0.6f);
-        velocityField.AddFieldObject(new Vector3(-0.92f, -0.91f, 0), 2, 1.5f, 0.6f);
+        velocityField.AddFieldObject(new Vector3(1.12f, 1.11f, 0), 2, 1.5f, 0.6f);
+        velocityField.AddFieldObject(new Vector3(-1.12f, -1.11f, 0), 2, 1.5f, 0.6f);
         AddObject(new Vector3(-3.4f, 3.4f, 0));
     }
 
@@ -243,6 +243,7 @@ public class NodeGenerator2 : MonoBehaviour
         {
             objects.Clear();
         }
+        UpdateFPSCounter();
         DebugDraw();
     }
 
@@ -296,31 +297,30 @@ public class NodeGenerator2 : MonoBehaviour
 
     private List<GameObject> ClosestNodes(Vector3 pos)
     {
-        if (Input.GetKey(KeyCode.LeftAlt))
+        List<GameObject> sortedNodes;
+
+        //Not exactly sure why I need to skip the first two frames
+        //But if spacialHasher.ClosestObjects second parameter is less than 5, it messes up some connections
+        //But only in the first two frames.
+        if (Input.GetKey(KeyCode.LeftAlt) || Time.frameCount < 2)
         {
             List<GameObject> prunedNodes = new List<GameObject>(nodes);
             prunedNodes.RemoveAll(x => x.GetComponent<PosNode>().isDead);
-            List<GameObject> sortedNodes = new List<GameObject>(prunedNodes);
-            sortedNodes.Sort((a, b) =>
-            {
-                float mA = (a.transform.position - pos).magnitude;
-                float mB = (b.transform.position - pos).magnitude;
-                return mA.CompareTo(mB);
-            });
-            return sortedNodes;
+            sortedNodes = new List<GameObject>(prunedNodes);
+            
         }
         else
         {
-
-            List<GameObject> sortedNodes = spatialHasher.ClosestObjects(pos, 6);
-            sortedNodes.Sort((a, b) =>
-            {
-                float mA = (a.transform.position - pos).magnitude;
-                float mB = (b.transform.position - pos).magnitude;
-                return mA.CompareTo(mB);
-            });
-            return sortedNodes;
+            sortedNodes = spatialHasher.ClosestObjects(pos, 3);
         }
+
+        sortedNodes.Sort((a, b) =>
+        {
+            float mA = (a.transform.position - pos).magnitude;
+            float mB = (b.transform.position - pos).magnitude;
+            return mA.CompareTo(mB);
+        });
+        return sortedNodes;
     }
 
     private GameObject AddNode(Vector3 pos, bool isUnmoving = false)
@@ -365,12 +365,30 @@ public class NodeGenerator2 : MonoBehaviour
         }
     }
 
+    private const int maxFpsHistoryCount = 30;
+    private List<float> fpsHistory = new List<float>();
+    private float fps = 0;
+    private void UpdateFPSCounter()
+    {
+        fpsHistory.Add(1f / Time.deltaTime);
+        if (fpsHistory.Count > maxFpsHistoryCount) { fpsHistory.RemoveAt(0); }
+        if (Time.frameCount % maxFpsHistoryCount == 0)
+        {
+            float total = 0;
+            foreach (float f in fpsHistory)
+            {
+                total += f;
+            }
+            fps = total / fpsHistory.Count;
+        }
+    }
+
     private void OnDrawGizmos()
     {
         Gizmos.color = new Color(1, 0, 0, 0.5f);
         velocityField.DebugDrawGizmos();
         GUIStyle style = GUI.skin.label;
         style.fontSize = 6;
-        Handles.Label(new Vector3(-4.3f, -4.4f, 0), "Fuel: " + ((int)fuel).ToString() + "kg    Shield: " + ((int)shield).ToString() + "%    FPS:" + (int)(1f/Time.deltaTime), style);
+        Handles.Label(new Vector3(-4.3f, -4.4f, 0), "Fuel: " + ((int)fuel).ToString() + "kg    Shield: " + ((int)shield).ToString() + "%    FPS:" + (int)(fps), style);
     }
 }
