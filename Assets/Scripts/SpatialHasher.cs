@@ -24,11 +24,13 @@ public class SpatialHasher
     private int numCells;
     private Bucket[] buckets;
     private int[] spiralCoords;
+    float offset;
 
     public SpatialHasher(float cellSize, float totalSideLength)
     {
         this.cellSize = cellSize;
         this.totalSideLength = totalSideLength;
+        this.offset = totalSideLength * 0.5f;
 
         this.inverseCellSize = 1 / cellSize;
         this.numSideCells = (int)(totalSideLength * inverseCellSize);
@@ -106,8 +108,8 @@ public class SpatialHasher
 
     private int Hash(Vector3 point)
     {
-        int x = (int)(point.x * inverseCellSize);
-        int y = (int)(point.y * inverseCellSize);
+        int x = (int)((point.x + offset) * inverseCellSize);
+        int y = (int)((point.y + offset) * inverseCellSize);
         int hash = x + y * numSideCells;
         hash = Math.Clamp(hash, 0, numCells - 1);
         return hash;

@@ -9,13 +9,12 @@ using static UnityEditor.PlayerSettings;
 
 public class PosObj : MonoBehaviour
 {
-    public static int numNodes = 3; //Dimension + 1, so for 2d it's 3
-    public GameObject[] closestNodes = new GameObject[numNodes];
+    public List<GameObject> closestNodes = new List<GameObject>();
     private Vector3 pull = Vector3.zero;
     private Vector3 vel = Vector3.zero;
-    private bool needsRebase = false;
     public Vector3 prevPos = Vector3.zero;
     private Vector3 offset = Vector3.zero;
+    private bool needsRebase = false;
 
     public float GetSpeed()
     {
@@ -45,23 +44,38 @@ public class PosObj : MonoBehaviour
 
     public void Rebase(List<GameObject> closestList)
     {
-        closestNodes = closestList.Take(numNodes).ToArray();
-        Vector3 avgPos = (closestNodes[0].transform.position + closestNodes[1].transform.position + closestNodes[2].transform.position) / 3;
+        closestNodes = closestList;
+        Vector3 avgPos = AverageNodePos();
         offset = transform.position - avgPos;
         needsRebase = false;
     }
 
+    private Vector3 AverageNodePos()
+    {
+        Vector3 avgPos = Vector3.zero;
+        foreach (GameObject obj in closestNodes)
+        {
+            avgPos += obj.transform.position;
+        }
+        avgPos /= (float)closestNodes.Count;
+        return avgPos;
+    }
+
     public Vector3 CalculatePosition()
     {
-        Vector3 avgPos = (closestNodes[0].transform.position + closestNodes[1].transform.position + closestNodes[2].transform.position) / 3;
-        return avgPos + offset;
+        return AverageNodePos() + offset;
     }
 
     public bool HasDeadNode()
     {
-        return closestNodes[0].GetComponent<PosNode>().isDead ||
-                closestNodes[1].GetComponent<PosNode>().isDead ||
-                closestNodes[2].GetComponent<PosNode>().isDead;
+        foreach (GameObject obj in closestNodes)
+        {
+            if(obj.GetComponent<PosNode>().isDead)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     public bool ShouldRebase()

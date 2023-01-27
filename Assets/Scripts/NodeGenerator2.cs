@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -27,6 +28,8 @@ public class NodeGenerator2 : MonoBehaviour
     private const float maxShield = 100.0f;
     private float shield = maxShield;
     private const float maxSafeSpeed = 1.1f;
+
+    private int numClosestNodes = 4;
 
     // Start is called before the first frame update
     void Start()
@@ -60,7 +63,7 @@ public class NodeGenerator2 : MonoBehaviour
         {
             if (!unmovingNode.GetComponent<PosNode>().isUnmoving) { continue; }
 
-            List<GameObject> closest = ClosestNodes(unmovingNode.transform.position, false);
+            List<GameObject> closest = ClosestNodes(unmovingNode.transform.position, true);
             foreach (GameObject closestNode in closest)
             {
                 if (!closestNode.GetComponent<PosNode>().isUnmoving)
@@ -153,6 +156,8 @@ public class NodeGenerator2 : MonoBehaviour
 
     private void UpdateShip()
     {
+        if(ship == null) { return; }
+
         float fspeed = 2.0f;
         float rspeed = 2.0f;
 
@@ -219,14 +224,11 @@ public class NodeGenerator2 : MonoBehaviour
             }
         }
 
+        mainCamera.transform.position = new Vector3(ship.transform.position.x, ship.transform.position.y, mainCamera.transform.position.z);
+        
         if (shield < 0)
         {
             ship = null;
-        }
-
-        if (ship != null)
-        {
-            mainCamera.transform.position = new Vector3(ship.transform.position.x, ship.transform.position.y, mainCamera.transform.position.z);
         }
     }
 
@@ -278,29 +280,33 @@ public class NodeGenerator2 : MonoBehaviour
         connections.Remove(c);
     }
 
-    private List<GameObject> ClosestNodes(Vector3 pos, bool useSpacialHasher = true)
+    private List<GameObject> ClosestNodes(Vector3 pos, bool returnAll = false)
     {
         List<GameObject> sortedNodes;
 
-        if (useSpacialHasher)
-        {
-            sortedNodes = spatialHasher.ClosestObjects(pos, 3);
-            
-        }
-        else
+        if (returnAll)
         {
             List<GameObject> prunedNodes = new List<GameObject>(nodes);
             prunedNodes.RemoveAll(x => x.GetComponent<PosNode>().isDead);
             sortedNodes = new List<GameObject>(prunedNodes);
         }
-
+        else
+        {
+            sortedNodes = spatialHasher.ClosestObjects(pos, numClosestNodes);
+        }
+        
         sortedNodes.Sort((a, b) =>
         {
             float mA = (a.transform.position - pos).magnitude;
             float mB = (b.transform.position - pos).magnitude;
             return mA.CompareTo(mB);
         });
-        return sortedNodes;
+
+        if(returnAll)
+        {
+            return sortedNodes;
+        }
+        return sortedNodes.Take(numClosestNodes).ToList();
     }
 
     private GameObject AddNode(Vector3 pos, bool isUnmoving = false)
