@@ -201,9 +201,7 @@ public class NodeGenerator : MonoBehaviour
                 posObj.Rotate(-rspeed);
             }
 
-            Vector3 prevPos = obj.transform.position;
-            obj.transform.position = posObj.CalculatePosition();
-            posObj.Integrate(obj.transform.position - prevPos);
+            posObj.Integrate();
 
             if (posObj.ShouldRebase())
             {

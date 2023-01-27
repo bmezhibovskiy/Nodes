@@ -29,7 +29,7 @@ public class NodeGenerator2 : MonoBehaviour
     private float shield = maxShield;
     private const float maxSafeSpeed = 1.1f;
 
-    private int numClosestNodes = 4;
+    private int numClosestNodes = 3;
 
     // Start is called before the first frame update
     void Start()
@@ -37,7 +37,7 @@ public class NodeGenerator2 : MonoBehaviour
         GenerateNodes();
         GenerateConnections();
         ship = AddObject(Vector3.zero);
-        velocityField.AddFieldObject(new Vector3(2,2,0), 2, 1.5f, 0.6f);
+        velocityField.AddFieldObject(new Vector3(2.5f,2.5f,0), 2, 1.4f, 0.6f);
     }
 
     private void GenerateNodes()
@@ -193,11 +193,7 @@ public class NodeGenerator2 : MonoBehaviour
         }
 
         Vector3 prevPosition = ship.transform.position;
-        Vector3 nextGridPos = posObj.CalculatePosition();
-
-        Vector3 gridMovement = nextGridPos - prevPosition;
-        posObj.Integrate(gridMovement);
-
+        posObj.Integrate();
 
         GameObject closest = velocityField.ClosestFieldObject(ship.transform.position);
         if (closest != null)
@@ -217,11 +213,7 @@ public class NodeGenerator2 : MonoBehaviour
 
         if (posObj.ShouldRebase())
         {
-            List<GameObject> closestNodes = ClosestNodes(ship.transform.position);
-            if (closestNodes.Count > 2)
-            {
-                posObj.Rebase(closestNodes);
-            }
+            posObj.Rebase(ClosestNodes(ship.transform.position));
         }
 
         mainCamera.transform.position = new Vector3(ship.transform.position.x, ship.transform.position.y, mainCamera.transform.position.z);
@@ -294,19 +286,10 @@ public class NodeGenerator2 : MonoBehaviour
         {
             sortedNodes = spatialHasher.ClosestObjects(pos, numClosestNodes);
         }
-        
-        sortedNodes.Sort((a, b) =>
-        {
-            float mA = (a.transform.position - pos).magnitude;
-            float mB = (b.transform.position - pos).magnitude;
-            return mA.CompareTo(mB);
-        });
 
-        if(returnAll)
-        {
-            return sortedNodes;
-        }
-        return sortedNodes.Take(numClosestNodes).ToList();
+        sortedNodes.Sort((a, b) => (a.transform.position - pos).sqrMagnitude.CompareTo((b.transform.position - pos).sqrMagnitude));
+
+        return returnAll ? sortedNodes : sortedNodes.Take(numClosestNodes).ToList();
     }
 
     private GameObject AddNode(Vector3 pos, bool isUnmoving = false)

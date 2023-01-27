@@ -31,22 +31,22 @@ public class PosObj : MonoBehaviour
         transform.RotateAround(transform.position, Vector3.forward, speed);
     }
 
-    public void Integrate(Vector3 gridMovement)
+    public void Integrate()
     {
-        IntegrateVerlet(gridMovement);
+        IntegrateVerlet();
     }
 
     public void HandleCollisionAt(Vector3 collisionPos)
     {
         transform.position = collisionPos;
+        prevPos = collisionPos;
         needsRebase = true;
     }
 
     public void Rebase(List<GameObject> closestList)
     {
         closestNodes = closestList;
-        Vector3 avgPos = AverageNodePos();
-        offset = transform.position - avgPos;
+        offset = transform.position - AverageNodePos();
         needsRebase = false;
     }
 
@@ -61,7 +61,7 @@ public class PosObj : MonoBehaviour
         return avgPos;
     }
 
-    public Vector3 CalculatePosition()
+    public Vector3 GridPosition()
     {
         return AverageNodePos() + offset;
     }
@@ -95,11 +95,11 @@ public class PosObj : MonoBehaviour
 
     }
 
-    private void IntegrateVerlet(Vector3 gridMovement)
+    private void IntegrateVerlet()
     {
         //Updating the current pos without updating the prev pos
         //causes the velocity to curve towards the grid movement
-        transform.position += gridMovement * Time.deltaTime;
+        transform.position += (GridPosition() - transform.position) * Time.deltaTime;
 
         Vector3 current = transform.position;
         transform.position = 2 * current - prevPos + pull * (Time.deltaTime * Time.deltaTime);
