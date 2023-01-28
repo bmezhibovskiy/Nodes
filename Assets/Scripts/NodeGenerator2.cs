@@ -120,7 +120,7 @@ public class NodeGenerator2 : MonoBehaviour
             if (closest != null)
             {
                 FieldObject fieldObj = closest.GetComponent<FieldObject>();
-                if (Vector3.Distance(closest.transform.position, node.transform.position) < fieldObj.radius)
+                if ((closest.transform.position-node.transform.position).sqrMagnitude < fieldObj.radius * fieldObj.radius)
                 {
                     node.GetComponent<PosNode>().isDead = true;
                     spatialHasher.RemoveObject(node);
