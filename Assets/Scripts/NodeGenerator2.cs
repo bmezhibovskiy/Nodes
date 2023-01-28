@@ -14,6 +14,7 @@ public class NodeGenerator2 : MonoBehaviour
     private static Vector3 nodeOffset = Vector3.up * nodeDistance;
     private static float diagDistance = Mathf.Sqrt(2 * nodeDistance * nodeDistance);
     private static float maxDistance = nodeDistance * 2.0f;
+    private static float sqrMaxDistance = maxDistance * maxDistance;
     public static float minDistance = nodeDistance * 0.2f;
     private static float compressionFactor = 1.0f;
 
@@ -23,7 +24,7 @@ public class NodeGenerator2 : MonoBehaviour
     private VelocityField velocityField = new VelocityField();
     private SpatialHasher spatialHasher = new SpatialHasher(nodeDistance * 1.25f, nodeDistance * (float)numSideNodes * 1.25f);
 
-    private const float maxFuel = 4000.0f;
+    private const float maxFuel = 5000.0f;
     private float fuel = maxFuel;
     private const float maxShield = 100.0f;
     private float shield = maxShield;
@@ -37,7 +38,7 @@ public class NodeGenerator2 : MonoBehaviour
         GenerateNodes();
         GenerateConnections();
         ship = AddObject(Vector3.zero);
-        velocityField.AddFieldObject(new Vector3(2.5f,2.5f,0), 2, 1.4f, 0.6f);
+        velocityField.AddFieldObject(new Vector3(2.5f, 2.5f, 0), 2, 1.4f, 0.6f);
     }
 
     private void GenerateNodes()
@@ -94,7 +95,7 @@ public class NodeGenerator2 : MonoBehaviour
     }
     private void UpdateMouseClick()
     {
-        if(!Input.GetMouseButtonDown(0)) { return; }
+        if (!Input.GetMouseButtonDown(0)) { return; }
 
         Vector3 mousePos = mainCamera.ScreenToWorldPoint(Input.mousePosition);
         mousePos.z = 0;
@@ -139,24 +140,22 @@ public class NodeGenerator2 : MonoBehaviour
 
     private void UpdateConnections()
     {
-        int connectionIndex = 0;
-        while (connectionIndex < connections.Count)
+        foreach (Connection c in connections)
         {
-            for (connectionIndex = 0; connectionIndex < connections.Count; ++connectionIndex)
+            if ((c.a.transform.position - c.b.transform.position).sqrMagnitude > sqrMaxDistance)
             {
-                Connection c = connections[connectionIndex];
-                if (Vector3.Distance(c.a.transform.position, c.b.transform.position) > maxDistance)
-                {
-                    CreateNodeInConnection(c);
-                    break;
-                }
+                CreateNodeInConnection(c);
+                //We need to stop iterating once the collection is changed.
+                //So we only add one node per frame
+                return;
             }
         }
+
     }
 
     private void UpdateShip()
     {
-        if(ship == null) { return; }
+        if (ship == null) { return; }
 
         float fspeed = 2.0f;
         float rspeed = 2.0f;
@@ -206,7 +205,7 @@ public class NodeGenerator2 : MonoBehaviour
                 if (intersection != null)
                 {
                     shield -= Mathf.Max(0, posObj.GetSpeed() - maxSafeSpeed) * 10.0f;
-                    posObj.HandleCollisionAt(intersection.Value);
+                    posObj.HandleCollisionAt(intersection.Value, dist.normalized);
                 }
             }
         }
@@ -217,7 +216,7 @@ public class NodeGenerator2 : MonoBehaviour
         }
 
         mainCamera.transform.position = new Vector3(ship.transform.position.x, ship.transform.position.y, mainCamera.transform.position.z);
-        
+
         if (shield < 0)
         {
             ship = null;
@@ -237,14 +236,14 @@ public class NodeGenerator2 : MonoBehaviour
         //Solve using quadratic formula
         float discriminant = b * b - 4 * a * c;
 
-        if(discriminant < 0)
+        if (discriminant < 0)
         {
             return null;
         }
         discriminant = Mathf.Sqrt(discriminant);
         float t1 = (-b - discriminant) / (2 * a);
         float t2 = (-b + discriminant) / (2 * a);
-        if (t1 >= -e && t1 <= 1+e)
+        if (t1 >= -e && t1 <= 1 + e)
         {
             return start + t1 * d;
         }
@@ -258,12 +257,12 @@ public class NodeGenerator2 : MonoBehaviour
         Vector3 newPos = c.Midpoint();
         GameObject newNode = AddNode(newPos);
 
-        if(c.a.GetComponent<PosNode>().isUnmoving)
+        if (c.a.GetComponent<PosNode>().isUnmoving)
         {
             float distA = (c.a.transform.position - newPos).magnitude * compressionFactor;
             connections.Add(new Connection(c.a, newNode, distA));
         }
-        if(c.b.GetComponent<PosNode>().isUnmoving)
+        if (c.b.GetComponent<PosNode>().isUnmoving)
         {
             float distB = (c.b.transform.position - newPos).magnitude * compressionFactor;
             connections.Add(new Connection(newNode, c.b, distB));
@@ -320,14 +319,16 @@ public class NodeGenerator2 : MonoBehaviour
 
         foreach (Connection c in connections)
         {
-            Debug.DrawLine(c.a.transform.position, c.b.transform.position, new Color(0.35f,0.35f,0.35f,1));
+            Debug.DrawLine(c.a.transform.position, c.b.transform.position, new Color(0.35f, 0.35f, 0.35f, 1));
         }
         foreach (GameObject n in nodes)
         {
             n.GetComponent<PosNode>().DebugDraw();
         }
-        
-        ship.GetComponent<PosObj>().DebugDraw();
+        if (ship != null)
+        {
+            ship.GetComponent<PosObj>().DebugDraw();
+        }
     }
 
     private const int maxFpsHistoryCount = 30;
@@ -355,7 +356,7 @@ public class NodeGenerator2 : MonoBehaviour
         GUIStyle style = GUI.skin.label;
         style.fontSize = 6;
         Vector3 camPos = mainCamera.transform.position;
-        Vector3 labelPos = new Vector3(camPos.x-4.3f, camPos.y-4.4f, 0);
+        Vector3 labelPos = new Vector3(camPos.x - 4.3f, camPos.y - 4.4f, 0);
         Handles.Label(labelPos, "Fuel: " + ((int)fuel).ToString() + "kg    Shield: " + ((int)shield).ToString() + "%    FPS:" + (int)(fps), style);
     }
 }

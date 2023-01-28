@@ -1,11 +1,6 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.Assertions;
-using static UnityEditor.PlayerSettings;
 
 public class PosObj : MonoBehaviour
 {
@@ -18,7 +13,7 @@ public class PosObj : MonoBehaviour
 
     public float GetSpeed()
     {
-        return vel.magnitude;
+        return vel.magnitude / Time.deltaTime;
     }
 
     public void AddThrust(float strength)
@@ -36,10 +31,13 @@ public class PosObj : MonoBehaviour
         IntegrateVerlet();
     }
 
-    public void HandleCollisionAt(Vector3 collisionPos)
+    public void HandleCollisionAt(Vector3 collisionPos, Vector3 normal, float bounciness = 0.4f)
     {
+        Assert.AreApproximatelyEqual(normal.sqrMagnitude, 1);
+        //Reflect vel about normal
+        vel = (vel - 2f * Vector3.Dot(vel, normal) * normal) * bounciness;
+        prevPos = collisionPos - vel;
         transform.position = collisionPos;
-        prevPos = collisionPos;
         needsRebase = true;
     }
 
@@ -70,7 +68,7 @@ public class PosObj : MonoBehaviour
     {
         foreach (GameObject obj in closestNodes)
         {
-            if(obj.GetComponent<PosNode>().isDead)
+            if (obj.GetComponent<PosNode>().isDead)
             {
                 return true;
             }
@@ -103,16 +101,15 @@ public class PosObj : MonoBehaviour
 
         Vector3 current = transform.position;
         transform.position = 2 * current - prevPos + pull * (Time.deltaTime * Time.deltaTime);
-        vel = transform.position - current;
         pull = Vector3.zero;
         prevPos = current;
-        vel = (transform.position - current) / Time.deltaTime;
+        vel = (transform.position - current);
     }
 
     public void DebugDraw()
     {
         Debug.DrawLine(transform.position, transform.position + transform.up * 0.5f, UnityEngine.Color.green);
-        Debug.DrawLine(transform.position, transform.position + vel * 0.5f, new UnityEngine.Color(0.6f,0,0));
+        Debug.DrawLine(transform.position, transform.position + (vel / Time.deltaTime) * 0.5f, new UnityEngine.Color(0.6f, 0, 0));
     }
 
     public void OnDrawGizmos()

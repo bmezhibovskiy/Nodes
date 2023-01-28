@@ -1,11 +1,8 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.Assertions;
 
-public class SpatiallyHashed: MonoBehaviour
+public class SpatiallyHashed : MonoBehaviour
 {
     public SpatialHasher.Bucket bucket;
 }
@@ -37,7 +34,7 @@ public class SpatialHasher
         this.numCells = numSideCells * numSideCells;
 
         this.buckets = new Bucket[numCells];
-        for(int i = 0; i < numCells; i++) { buckets[i] = new Bucket(); }
+        for (int i = 0; i < numCells; i++) { buckets[i] = new Bucket(); }
 
         this.spiralCoords = Spiral.GenerateSpiralCoords(numSideCells);
     }
@@ -57,7 +54,7 @@ public class SpatialHasher
         {
             Bucket currentBucket = hashed.bucket;
             Bucket newBucket = buckets[Hash(obj.transform.position)];
-            if(currentBucket != newBucket)
+            if (currentBucket != newBucket)
             {
                 currentBucket.objects.Remove(obj);
                 newBucket.objects.Add(obj);
@@ -84,7 +81,7 @@ public class SpatialHasher
         int x = hash % numSideCells;
         int y = hash / numSideCells;
 
-        for(int i = 0; i < spiralCoords.Length; ++i)
+        for (int i = 0; i < spiralCoords.Length; ++i)
         {
             int spiralHash = spiralCoords[i];
             int spiralX = spiralHash % numSideCells;
@@ -92,12 +89,12 @@ public class SpatialHasher
             int nextX = x + spiralX;
             int nextY = y + spiralY;
             int nextHash = nextX + nextY * numSideCells;
-            if(nextHash >= numCells || nextHash < 0)
+            if (nextHash >= numCells || nextHash < 0)
             {
                 continue;
             }
             closest.AddRange(buckets[nextHash].objects);
-            if(closest.Count >= numClosest)
+            if (closest.Count >= numClosest)
             {
                 break;
             }
@@ -135,7 +132,7 @@ public class Spiral
             while (2 * x * d < m)
             {
                 coords[currentCoord++] = x + y * sideLength;
-                if(currentCoord == totalCoords) { return coords; }
+                if (currentCoord == totalCoords) { return coords; }
                 x += d;
             }
             while (2 * y * d < m)

@@ -1,9 +1,4 @@
-using JetBrains.Annotations;
-using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.ExceptionServices;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.Assertions;
 
@@ -90,9 +85,9 @@ public class NodeGenerator : MonoBehaviour
     private void GenerateConnections()
     {
         connections.Add(new Connection(nodes[0], nodes[numSideNodes + 1], diagDistance * compressionFactor));
-        connections.Add(new Connection(nodes[numSideNodes - 1], nodes[(numSideNodes)*2 - 2], diagDistance * compressionFactor));
-        connections.Add(new Connection(nodes[numSideNodes * (numSideNodes-1)], nodes[(numSideNodes-1) * (numSideNodes-1)], diagDistance * compressionFactor));
-        connections.Add(new Connection(nodes[numSideNodes*numSideNodes-1], nodes[numSideNodes * (numSideNodes - 1) - 2], diagDistance * compressionFactor));
+        connections.Add(new Connection(nodes[numSideNodes - 1], nodes[(numSideNodes) * 2 - 2], diagDistance * compressionFactor));
+        connections.Add(new Connection(nodes[numSideNodes * (numSideNodes - 1)], nodes[(numSideNodes - 1) * (numSideNodes - 1)], diagDistance * compressionFactor));
+        connections.Add(new Connection(nodes[numSideNodes * numSideNodes - 1], nodes[numSideNodes * (numSideNodes - 1) - 2], diagDistance * compressionFactor));
 
         for (int i = 0; i < numSideNodes; ++i)
         {
@@ -163,7 +158,8 @@ public class NodeGenerator : MonoBehaviour
                         float mag = Mathf.Log((float)mouseDownFrames) * 0.005f / dir.sqrMagnitude;
                         closest[i].GetComponent<PosNode>().AddPull(dir.normalized * mag);
                     }
-                } else
+                }
+                else
                 {
                     //closest[i].GetComponent<PosNode>().isDead = true;
                 }
@@ -214,13 +210,13 @@ public class NodeGenerator : MonoBehaviour
 
     private void UpdateNodes()
     {
-        foreach(GameObject a in nodes)
+        foreach (GameObject a in nodes)
         {
-            foreach(GameObject b in nodes)
+            foreach (GameObject b in nodes)
             {
-                if(a==b) { continue; }
-                if(ConnectionExists(a,b)) { continue; }
-                if((a.transform.position - b.transform.position).magnitude > nodeDistance * 0.01f) { continue; }
+                if (a == b) { continue; }
+                if (ConnectionExists(a, b)) { continue; }
+                if ((a.transform.position - b.transform.position).magnitude > nodeDistance * 0.01f) { continue; }
                 connections.Add(new Connection(a, b, nodeDistance));
                 return;
             }
@@ -262,7 +258,7 @@ public class NodeGenerator : MonoBehaviour
                 Connection c = connections[i];
 
                 //Don't remove connections to unmoving nodes
-                if(c.a.GetComponent<PosNode>().isUnmoving || c.b.GetComponent<PosNode>().isUnmoving) { continue; }
+                if (c.a.GetComponent<PosNode>().isUnmoving || c.b.GetComponent<PosNode>().isUnmoving) { continue; }
 
                 float dist = (c.a.transform.position - c.b.transform.position).magnitude;
                 if (dist < minDistance || c.a.GetComponent<PosNode>().isDead || c.b.GetComponent<PosNode>().isDead)
@@ -310,11 +306,11 @@ public class NodeGenerator : MonoBehaviour
         float distB = (c.b.transform.position - newPos).magnitude * compressionFactor;
         Connection cA = new Connection(c.a, newNode, distA);
         Connection cB = new Connection(newNode, c.b, distB);
-        if(cA.a.GetComponent<PosNode>().isUnmoving)
+        if (cA.a.GetComponent<PosNode>().isUnmoving)
         {
             connections.Add(cA);
-            CreateExtraConnectionsForNewNode(newNode,cA);
-        } 
+            CreateExtraConnectionsForNewNode(newNode, cA);
+        }
         else if (cB.b.GetComponent<PosNode>().isUnmoving)
         {
             connections.Add(cB);
@@ -333,7 +329,7 @@ public class NodeGenerator : MonoBehaviour
         if (c.a.GetComponent<PosNode>().isUnmoving)
         {
             unMoving1 = c.a;
-        } 
+        }
         else if (c.b.GetComponent<PosNode>().isUnmoving)
         {
             unMoving1 = c.b;
@@ -369,11 +365,11 @@ public class NodeGenerator : MonoBehaviour
             }
         }
 
-        if(unMoving2 != null)
+        if (unMoving2 != null)
         {
             foreach (Connection current in connections)
             {
-                if(current.a == unMoving2 && !current.b.GetComponent<PosNode>().isUnmoving)
+                if (current.a == unMoving2 && !current.b.GetComponent<PosNode>().isUnmoving)
                 {
                     float length = (node.transform.position - current.b.transform.position).magnitude;
                     connections.Add(new Connection(node, current.b, length));
@@ -460,7 +456,7 @@ public class NodeGenerator : MonoBehaviour
         //e-New-h
         //| / \ |
         //i-j-k-l
-      
+
         GameObject newNode = AddNode(midC.Midpoint());
 
         foreach (Connection current in connections)
@@ -484,7 +480,7 @@ public class NodeGenerator : MonoBehaviour
 
     private void StabilizeConnections()
     {
-        foreach(Connection c in connections)
+        foreach (Connection c in connections)
         {
             c.length = (c.a.transform.position - c.b.transform.position).magnitude;
         }

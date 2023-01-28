@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -37,10 +36,12 @@ public class VelocityField
         {
             FieldObject fObj = go.GetComponent<FieldObject>();
             Vector3 dir = go.transform.position - position;
-            float strength = fObj.strength;
             //Inverse r squared law generalizes to inverse r^(dim-1)
-            float denom = Mathf.Pow(dir.magnitude, (float)(fObj.dimension - 1));
-            totalVelocity += (strength / denom) * dir.normalized;
+            //However, we need to multiply denom by dir.magnitude to normalize dir
+            //So that cancels with the fObj.dimension - 1, removing the - 1
+            //However #2, dir.sqrMagnitude is cheaper, but will require bringing back the - 1
+            float denom = Mathf.Pow(dir.sqrMagnitude, (float)(fObj.dimension - 1));
+            totalVelocity += (fObj.strength / denom) * dir;
 
         }
         return totalVelocity;
@@ -52,7 +53,7 @@ public class VelocityField
         GameObject current = null;
         foreach (GameObject go in fieldObjects)
         {
-            float currentDistance = Vector3.Distance(go.transform.position, pos);
+            float currentDistance = (go.transform.position - pos).sqrMagnitude;
             if (currentDistance < distance)
             {
                 distance = currentDistance;
