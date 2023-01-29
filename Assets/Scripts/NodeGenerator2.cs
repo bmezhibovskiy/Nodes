@@ -140,14 +140,13 @@ public class NodeGenerator2 : MonoBehaviour
 
     private void UpdateConnections()
     {
-        foreach (Connection c in connections)
+        for (int i = 0; i < connections.Count; ++i)
         {
+            Connection c = connections[i];
             if ((c.a.transform.position - c.b.transform.position).sqrMagnitude > sqrMaxDistance)
             {
                 CreateNodeInConnection(c);
-                //We need to stop iterating once the collection is changed.
-                //So we only add one node per frame
-                return;
+                --i;
             }
         }
 
