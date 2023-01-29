@@ -205,7 +205,7 @@ public class NodeGenerator2 : MonoBehaviour
                 if (intersection != null)
                 {
                     shield -= Mathf.Max(0, posObj.GetSpeed() - maxSafeSpeed) * 10.0f;
-                    posObj.HandleCollisionAt(intersection.Value, dist.normalized);
+                    posObj.HandleCollisionAt(intersection.Value, (intersection.Value - closest.transform.position).normalized);
                 }
             }
         }

@@ -1,11 +1,12 @@
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Assertions;
 
 public class PosObj : MonoBehaviour
 {
     public List<GameObject> closestNodes = new List<GameObject>();
-    private Vector3 pull = Vector3.zero;
+    private Vector3 accel = Vector3.zero;
     private Vector3 vel = Vector3.zero;
     public Vector3 prevPos = Vector3.zero;
     private Vector3 offset = Vector3.zero;
@@ -18,7 +19,7 @@ public class PosObj : MonoBehaviour
 
     public void AddThrust(float strength)
     {
-        pull += transform.up * strength;
+        accel += transform.up * strength;
     }
 
     public void Rotate(float speed)
@@ -31,13 +32,27 @@ public class PosObj : MonoBehaviour
         IntegrateVerlet();
     }
 
-    public void HandleCollisionAt(Vector3 collisionPos, Vector3 normal, float bounciness = 0.4f)
+    public void HandleCollisionAt(Vector3 collisionPos, Vector3 normal, float bounciness = 0.5f)
     {
+        transform.position = collisionPos;
+        if(vel.sqrMagnitude < 0.00002f)
+        {
+            //Velocity too small, set to 0 instead of bouncing forever, which can cause instability
+            prevPos = collisionPos;
+            return;
+        }
+
         Assert.AreApproximatelyEqual(normal.sqrMagnitude, 1);
+
         //Reflect vel about normal
         vel = (vel - 2f * Vector3.Dot(vel, normal) * normal) * bounciness;
+
+        //Would need time independent accel because otherwise we would need next frame's deltaTime to get the correct bounce
+        //Verlet integration doesn't seem good for velocity based forces, since velocity is derived.
+        //timeIndependentAccel += (-2 * normal * Vector3.Dot(vel, normal)) * bounciness;
+        
         prevPos = collisionPos - vel;
-        transform.position = collisionPos;
+
         needsRebase = true;
     }
 
@@ -100,10 +115,10 @@ public class PosObj : MonoBehaviour
         transform.position += (GridPosition() - transform.position) * Time.deltaTime;
 
         Vector3 current = transform.position;
-        transform.position = 2 * current - prevPos + pull * (Time.deltaTime * Time.deltaTime);
-        pull = Vector3.zero;
+        transform.position = 2 * current - prevPos + accel * (Time.deltaTime * Time.deltaTime);
+        accel = Vector3.zero;
         prevPos = current;
-        vel = (transform.position - current);
+        vel = transform.position - current;
     }
 
     public void DebugDraw()
