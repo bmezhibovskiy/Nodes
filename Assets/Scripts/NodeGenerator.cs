@@ -1,8 +1,10 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Assertions;
 
-class Connection
+class Connection: IEquatable<Connection>
 {
     public GameObject a;
     public GameObject b;
@@ -16,6 +18,12 @@ class Connection
         this.length = length;
         this.stiffness = stiffness;
     }
+
+    public bool Equals(Connection other)
+    {
+        return a == other.a && b == other.b || a == other.b && b == other.a;
+    }
+
     public Vector3 Midpoint()
     {
         return (a.transform.position + b.transform.position) * 0.5f;
@@ -40,8 +48,8 @@ public class NodeGenerator : MonoBehaviour
 
     private static float nodeDistance = 1.0f;
     private static float diagDistance = Mathf.Sqrt(2 * nodeDistance * nodeDistance);
-    private static float maxDistance = nodeDistance * 1.8f;
-    private static float minDistance = nodeDistance * 0.2f;
+    private static float maxDistance = nodeDistance * 2.0f;
+    private static float minDistance = nodeDistance * 0.6f;
     private static float compressionFactor = 1.0f;
 
     //private int numRecentlyDeletedNodes = 0;
@@ -78,9 +86,9 @@ public class NodeGenerator : MonoBehaviour
     {
         if (a.GetComponent<PosNode>().isUnmoving || b.GetComponent<PosNode>().isUnmoving)
         {
-            return 0.05f;
+            return 400.0f;
         }
-        return 0.1f;
+        return 800.0f;
     }
     private void GenerateConnections()
     {
@@ -155,7 +163,7 @@ public class NodeGenerator : MonoBehaviour
                 {
                     if (dir.sqrMagnitude < 1.8 * 1.8 * nodeDistance * nodeDistance)
                     {
-                        float mag = Mathf.Log((float)mouseDownFrames) * 0.005f / dir.sqrMagnitude;
+                        float mag = Mathf.Log((float)mouseDownFrames) * 20.0f / dir.sqrMagnitude;
                         closest[i].GetComponent<PosNode>().AddPull(dir.normalized * mag);
                     }
                 }
@@ -172,9 +180,9 @@ public class NodeGenerator : MonoBehaviour
 
         UpdatePulls();
         //UpdateNodes();
-        //UpdateConnections();
+        UpdateConnections();
 
-        float fspeed = 0.001f;
+        float fspeed = 2.1f;
         float rspeed = 2.1f;
         foreach (GameObject obj in objects)
         {
@@ -424,7 +432,7 @@ public class NodeGenerator : MonoBehaviour
             float mB = (b.transform.position - pos).magnitude;
             return mA.CompareTo(mB);
         });
-        return sortedNodes;
+        return sortedNodes.Take(3).ToList();
     }
 
     private List<Connection> ClosestConnections(Vector3 pos)
@@ -494,13 +502,13 @@ public class NodeGenerator : MonoBehaviour
 
     private Vector3 damping(Vector3 vel)
     {
-        float dampingStrength1 = 0.01f;
+        float dampingStrength1 = 0.02f;
         Vector3 term1 = -dampingStrength1 * vel;
 
-        float dampingStrength2 = 0.05f;
+        float dampingStrength2 = 0.005f;
         Vector3 term2 = -dampingStrength2 * vel.magnitude * vel;
 
-        return term1 + term2;
+        return term1;// + term2;
     }
 
     private GameObject AddNode(Vector3 pos, bool isUnmoving = false)

@@ -7,10 +7,13 @@ public class NodeGenerator2 : MonoBehaviour
 {
     [SerializeField] private bool drawDebugVisualizations = true;
     [SerializeField] private Camera mainCamera;
-    private static int numSideNodes = 37;
-    private static int numNodes = numSideNodes * numSideNodes;
 
-    private static float nodeDistance = 0.45f;
+    private static bool is3D = false;
+    private static int numSideNodes = is3D ? 13 : 37;
+    private static int numNodes = is3D ? numSideNodes * numSideNodes * numSideNodes : numSideNodes * numSideNodes;
+
+    private static float scale = 1.5f;
+    private static float nodeDistance = 0.4f * scale;
     private static Vector3 nodeOffset = Vector3.up * nodeDistance;
     private static float diagDistance = Mathf.Sqrt(2 * nodeDistance * nodeDistance);
     private static float maxDistance = nodeDistance * 2.0f;
@@ -22,7 +25,7 @@ public class NodeGenerator2 : MonoBehaviour
     private GameObject ship;
     private List<Connection> connections = new List<Connection>();
     private VelocityField velocityField = new VelocityField();
-    private SpatialHasher spatialHasher = new SpatialHasher(nodeDistance * 1.25f, nodeDistance * (float)numSideNodes * 1.25f);
+    private SpatialHasher spatialHasher = new SpatialHasher(nodeDistance * 1.25f, nodeDistance * (float)numSideNodes * 1.25f, is3D);
 
     private const float maxFuel = 5000.0f;
     private float fuel = maxFuel;
@@ -32,30 +35,46 @@ public class NodeGenerator2 : MonoBehaviour
 
     private int numClosestNodes = 3;
 
+
     // Start is called before the first frame update
     void Start()
     {
         GenerateNodes();
         GenerateConnections();
+        mainCamera.orthographic = !is3D;
         ship = AddObject(Vector3.zero);
-        velocityField.AddFieldObject(new Vector3(2.5f, 2.5f, 0), 2, 1.4f, 0.6f);
+        velocityField.AddFieldObject(new Vector3(0.5f, 0.5f, 0), 2, 0.7f * scale, 1.3f, 0f);
     }
 
     private void GenerateNodes()
     {
         for (int i = 0; i < numNodes; i++)
         {
-            int rawX = i % numSideNodes;
-            int rawY = i / numSideNodes;
-            float x = (float)(rawX - numSideNodes / 2) * nodeDistance;
-            float y = (float)(rawY - numSideNodes / 2) * nodeDistance;
-            AddNode(new Vector3(x, y, 0) + nodeOffset, IsUnmoving(rawX, rawY));
+            int[] raw = is3D ? Utils.to3D(i, numSideNodes) : Utils.to2D(i, numSideNodes);
+            float x = (float)(raw[0] - numSideNodes / 2) * nodeDistance;
+            float y = (float)(raw[1] - numSideNodes / 2) * nodeDistance;
+            if (is3D)
+            {
+                float z = (float)(raw[2] - numSideNodes / 2) * nodeDistance;
+                AddNode(new Vector3(x, y, z) + nodeOffset, IsUnmoving(raw));
+            }
+            else
+            {
+                AddNode(new Vector3(x, y, 0) + nodeOffset, IsUnmoving(raw));
+            }
         }
     }
 
-    private bool IsUnmoving(int rawX, int rawY)
+    private bool IsUnmoving(int[] raw)
     {
-        return rawX == 0 || rawY == 0 || rawX == numSideNodes - 1 || rawY == numSideNodes - 1;
+        foreach(int i in raw)
+        {
+            if(i == 0 || i == numSideNodes - 1)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void GenerateConnections()
@@ -107,7 +126,7 @@ public class NodeGenerator2 : MonoBehaviour
         }
         else
         {
-            velocityField.AddFieldObject(mousePos, 2, 1.5f, 0.6f);
+            velocityField.AddFieldObject(mousePos, 2, 0.6f, 1.4f, -0.4f);
         }
 
     }
