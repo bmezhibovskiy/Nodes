@@ -19,6 +19,7 @@ public class Map: MonoBehaviour
 {
     HashSet<SectorConnection> connections = new HashSet<SectorConnection>();
     GameObject currentSector;
+    int currentSectorIndex = 0;
 
     private static string infoFilename = "Map1.json";
     private MapInfo mapInfo;
@@ -29,8 +30,9 @@ public class Map: MonoBehaviour
     {
         this.mainCamera = mainCamera;
         this.mapInfo = MapInfo.fromJsonFile(infoFilename);
-        Assert.IsTrue(mapInfo.sectorInfos.Length > 0);
-        LoadSector(0);
+        currentSectorIndex = mapInfo.startingSectorIndex;
+        Assert.IsTrue(mapInfo.sectorInfos.Length > currentSectorIndex);
+        LoadSector(currentSectorIndex);
     }
 
     public void LoadSector(int sectorIndex)

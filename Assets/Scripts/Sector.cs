@@ -130,7 +130,10 @@ public class Sector: MonoBehaviour
         GridNode nodeComponent = newNode.AddComponent<GridNode>();
         nodeComponent.isBorder = isBorder;
         nodes.Add(newNode);
-        spatialHasher.AddObject(newNode);
+        if (!isBorder)
+        {
+            spatialHasher.AddObject(newNode);
+        }
         return newNode;
     }
 
@@ -202,26 +205,14 @@ public class Sector: MonoBehaviour
         foreach (GameObject node in nodes)
         {
             GridNode gridNode = node.GetComponent<GridNode>();
+            if (gridNode.isBorder) { continue; }
+
             gridNode.ResetForUpdate();
             foreach(GameObject sectorObject in sectorObjects)
             {
                 sectorObject.GetComponent<SectorObject>().UpdateGridNode(gridNode);
             }
-
-            GameObject closest = ClosestSectorObject(node.transform.position);
-            if (closest != null)
-            {
-                SectorObject sectorObject = closest.GetComponent<SectorObject>();
-                if ((closest.transform.position - node.transform.position).sqrMagnitude < sectorObject.size * sectorObject.size)
-                {
-                    gridNode.isDead = true;
-                    spatialHasher.RemoveObject(node);
-                }
-                else
-                {
-                    spatialHasher.UpdateObject(node);
-                }
-            }
+            spatialHasher.UpdateObject(node);
         }
         RemoveDeadNodes();
     }
@@ -244,7 +235,16 @@ public class Sector: MonoBehaviour
 
     private void RemoveDeadNodes()
     {
-        nodes.RemoveAll(x => x.GetComponent<GridNode>().isDead);
+        nodes.RemoveAll(delegate (GameObject nodeObject)
+        {
+            GridNode gridNode = nodeObject.GetComponent<GridNode>();
+            if (gridNode == null || gridNode.isDead)
+            {
+                spatialHasher.RemoveObject(nodeObject);
+                return true;
+            }
+            return false;
+        });
     }
 
     private void UpdateConnections()
@@ -286,29 +286,32 @@ public class Sector: MonoBehaviour
 
         Ship ship = playerShip.GetComponent<Ship>();
         if (ship == null) { return; }
+        if (!ship.IsDocked())
+        {
 
-        if (Input.GetKey(KeyCode.LeftArrow))
-        {
-            ship.Rotate(rspeed);
-        }
-        if (Input.GetKey(KeyCode.RightArrow))
-        {
-            ship.Rotate(-rspeed);
-        }
-        if (Input.GetKey(KeyCode.UpArrow))
-        {
-            ship.AddThrust(fspeed);
-        }
-        if (Input.GetKey(KeyCode.DownArrow))
-        {
-            ship.AddThrust(-fspeed);
-        }
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            ship.AddThrust(fspeed * 50.0f);
+            if (Input.GetKey(KeyCode.LeftArrow))
+            {
+                ship.Rotate(rspeed);
+            }
+            if (Input.GetKey(KeyCode.RightArrow))
+            {
+                ship.Rotate(-rspeed);
+            }
+            if (Input.GetKey(KeyCode.UpArrow))
+            {
+                ship.AddThrust(fspeed);
+            }
+            if (Input.GetKey(KeyCode.DownArrow))
+            {
+                ship.AddThrust(-fspeed);
+            }
+            if (Input.GetKey(KeyCode.Space))
+            {
+                ship.AddThrust(fspeed * 2.0f);
+            }
         }
 
-        IntegrateCollideAndRebaseShip(playerShip);
+        UpdateShip(playerShip);
     }
 
     private void UpdateOtherShips()
@@ -316,38 +319,24 @@ public class Sector: MonoBehaviour
         foreach(GameObject gameObject in otherShips)
         {
             //TODO: Set rotation and pull with AI
-            IntegrateCollideAndRebaseShip(gameObject);
+            UpdateShip(gameObject);
         }
     }
 
-    private void IntegrateCollideAndRebaseShip(GameObject gameObject)
+    private void UpdateShip(GameObject gameObject)
     {
         Ship ship = gameObject.GetComponent<Ship>();
         if (ship == null) { return; }
+
+        foreach (GameObject sectorObject in sectorObjects)
+        {
+            sectorObject.GetComponent<SectorObject>().UpdateShip(ship);
+        }
 
         Vector3 prevPosition = gameObject.transform.position;
         ship.Integrate();
         Vector3 currentPosition = gameObject.transform.position;
         Vector3 postCollisionPosition = currentPosition;
-
-        //Collide with sector objects
-        GameObject closest = ClosestSectorObject(currentPosition);
-        if (closest != null)
-        {
-            Vector3 closestPosition = closest.transform.position;
-            SectorObject sectorObject = closest.GetComponent<SectorObject>();
-            Vector3 dist = currentPosition - closestPosition;
-            if (dist.magnitude < sectorObject.size + ship.size)
-            {
-                Vector3? intersection = Utils.LineSegmentCircleIntersection(closestPosition, sectorObject.size + ship.size, prevPosition, currentPosition);
-                if (intersection != null)
-                {
-                    ship.HandleCollisionAt(intersection.Value, (intersection.Value - closestPosition).normalized);
-                    postCollisionPosition = gameObject.transform.position;
-                }
-            }
-        }
-        //
 
         //Collide with other ships
         foreach (GameObject otherGameObject in otherShips)
@@ -385,12 +374,15 @@ public class Sector: MonoBehaviour
 
     private void DebugDraw()
     {
+        /*
         foreach (NodeConnection c in connections)
         {
             Debug.DrawLine(c.a.transform.position, c.b.transform.position, new Color(0.35f, 0.35f, 0.35f, 1));
         }
+        */
         foreach (GameObject n in nodes)
         {
+            if(n.GetComponent<GridNode>().isBorder) { continue; }
             n.GetComponent<GridNode>().DebugDraw();
         }
         if (playerShip != null)

@@ -9,6 +9,8 @@ public class Ship : MonoBehaviour
     public Vector3 prevPos = Vector3.zero;
     public float size = 0.15f;
 
+    public ISectorObjectModule dockedAt = null;
+
     private Vector3 accel = Vector3.zero;
     private Vector3 vel = Vector3.zero;
     private Vector3 offset = Vector3.zero;
@@ -24,13 +26,36 @@ public class Ship : MonoBehaviour
         accel += transform.up * strength;
     }
 
+    public void AddAccel(Vector3 newAccel)
+    {
+        accel += newAccel;
+    }
+
     public void Rotate(float speed)
     {
         transform.RotateAround(transform.position, Vector3.forward, speed);
     }
 
+    public void DockAt(ISectorObjectModule dockModule)
+    {
+        dockedAt = dockModule;
+        prevPos = transform.position;
+        accel = Vector3.zero;
+        vel = Vector3.zero;
+
+        transform.up = (transform.position - dockedAt.parent.transform.position).normalized;
+    }
+
+    public bool IsDocked()
+    {
+        return dockedAt != null;
+    }
+
     public void Integrate()
     {
+        if(IsDocked() && !IsUndocking()) {
+            return;
+        }
         IntegrateVerlet();
     }
 
@@ -107,7 +132,24 @@ public class Ship : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if(IsUndocking())
+        {
+            Vector3 dist = transform.position - dockedAt.parent.transform.position;
+            transform.up = dist.normalized;
+            if (dist.magnitude < dockedAt.parent.size + size)
+            {
+                AddThrust(10f);
+            }
+            else
+            {
+                dockedAt = null;
+            }
+        }
+    }
 
+    private bool IsUndocking()
+    {
+        return IsDocked() && Input.GetKey(KeyCode.Space);
     }
 
     private void IntegrateVerlet()
@@ -131,7 +173,7 @@ public class Ship : MonoBehaviour
 
     public void OnDrawGizmos()
     {
-        Gizmos.color = new UnityEngine.Color(0, 1, 0, 0.7f);
+        Gizmos.color = dockedAt == null ? new UnityEngine.Color(0, 1, 0, 0.7f) : UnityEngine.Color.blue;
         Gizmos.DrawSphere(transform.position, size);
 
         Gizmos.color = UnityEngine.Color.white;

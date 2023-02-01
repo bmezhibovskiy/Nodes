@@ -4,10 +4,77 @@
 	[
 		{
 			"sectorId": 0,
-			"name": "Sector Zero",
+			"name": "Pewter",
+			"connectedSectorIds": [],
+			"is3d": false,
+			"sideLength": 24.0,
+			"sideNodes": 39,
+			"startPosition": {"x": 0.0, "y": 0.0, "z": 0.0},
+			"sectorObjectInfos":
+			[
+				{
+					"name": "Pewter Jewel",
+					"position": {"x": 4.0, "y": 2.0, "z": 0.0},
+					"size": 0.9,
+					"factionIndex": 0,
+					"moduleInfos":
+					[
+						{
+							"type": "NodePuller",
+							"parameters": [2, 1.5, 0.0]
+						}
+					]
+				},
+				{
+					"name": "Pewter Gem",
+					"position": {"x": -6.0, "y": -5.0, "z": 0.0},
+					"size": 0.6,
+					"factionIndex": 0,
+					"moduleInfos":
+					[
+						{
+							"type": "Dock",
+							"parameters": [10]
+						},
+						{
+							"type": "NodePuller",
+							"parameters": [1.8, 0.3, 0.0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"sectorId": 1,
+			"name": "Deep Space Sector 112b-2",
+			"connectedSectorIds": [],
+			"is3d": false,
+			"sideLength": 102.0,
+			"sideNodes": 35,
+			"startPosition": {"x": 0.0, "y": 0.0, "z": 0.0},
+			"sectorObjectInfos":
+			[
+				{
+					"name": "GO AWAY!",
+					"position": {"x": 5.0, "y": -5.0, "z": 0.0},
+					"size": 1.1,
+					"factionIndex": 0,
+					"moduleInfos":
+					[
+						{
+							"type": "ShipRepellent",
+							"parameters": [4.0, 200.0, 0.0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"sectorId": 2,
+			"name": "Iron",
 			"connectedSectorIds": [],
 			"is3d": true,
-			"sideLength": 16.0,
+			"sideLength": 8.0,
 			"sideNodes": 11,
 			"startPosition": {"x": 0.0, "y": 0.0, "z": 0.0},
 			"sectorObjectInfos":
@@ -20,33 +87,8 @@
 					"moduleInfos":
 					[
 						{
-							"type": "Puller",
-							"parameters": [3, 3.5, 0.0]
-						}
-					]
-				}
-			]
-		},
-		{
-			"sectorId": 1,
-			"name": "Sector One",
-			"connectedSectorIds": [],
-			"is3d": false,
-			"sideLength": 16.0,
-			"sideNodes": 35,
-			"startPosition": {"x": 0.0, "y": 0.0, "z": 0.0},
-			"sectorObjectInfos":
-			[
-				{
-					"name": "Pewter Jewel",
-					"position": {"x": 2.0, "y": 2.0, "z": 0.0},
-					"size": 0.9,
-					"factionIndex": 0,
-					"moduleInfos":
-					[
-						{
-							"type": "Puller",
-							"parameters": [2, 1.5, 0.0]
+							"type": "NodePuller",
+							"parameters": [3.0, 3.5, 0.0]
 						}
 					]
 				}
