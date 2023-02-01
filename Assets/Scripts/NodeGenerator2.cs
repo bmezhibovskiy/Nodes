@@ -23,7 +23,7 @@ public class NodeGenerator2 : MonoBehaviour
 
     private List<GameObject> nodes = new List<GameObject>(numNodes);
     private GameObject ship;
-    private List<Connection> connections = new List<Connection>();
+    private List<NodeGeneratorConnection> connections = new List<NodeGeneratorConnection>();
     private VelocityField velocityField = new VelocityField();
     private SpatialHasher spatialHasher = new SpatialHasher(nodeDistance * 1.25f, nodeDistance * (float)numSideNodes * 1.25f, is3D);
 
@@ -33,17 +33,25 @@ public class NodeGenerator2 : MonoBehaviour
     private float shield = maxShield;
     private const float maxSafeSpeed = 1.1f;
 
-    private int numClosestNodes = 3;
+    private int numClosestNodes = is3D ? 4 : 3;
+
+    GameObject mapObject;
 
 
     // Start is called before the first frame update
     void Start()
     {
+        mapObject = new GameObject("Map");
+        Map map = mapObject.AddComponent<Map>();
+        map.Instantiate(mainCamera);
+
+        /*
         GenerateNodes();
         GenerateConnections();
         mainCamera.orthographic = !is3D;
         ship = AddObject(Vector3.zero);
-        velocityField.AddFieldObject(new Vector3(0.5f, 0.5f, 0), 2, 0.7f * scale, 1.3f, 0f);
+        velocityField.AddFieldObject(new Vector3(0.5f, 0.5f, 0), 2, 0.7f * scale, 1.6f, 0f);
+        */
     }
 
     private void GenerateNodes()
@@ -89,7 +97,7 @@ public class NodeGenerator2 : MonoBehaviour
                 if (!closestNode.GetComponent<PosNode>().isUnmoving)
                 {
                     float dist = Vector3.Distance(closestNode.transform.position, unmovingNode.transform.position);
-                    connections.Add(new Connection(unmovingNode, closestNode, dist));
+                    connections.Add(new NodeGeneratorConnection(unmovingNode, closestNode, dist));
                     break;
                 }
             }
@@ -98,6 +106,7 @@ public class NodeGenerator2 : MonoBehaviour
 
     void Update()
     {
+        /*
         UpdateMouseClick();
 
         UpdateNodes();
@@ -111,6 +120,7 @@ public class NodeGenerator2 : MonoBehaviour
         UpdateFPSCounter();
 
         DebugDraw();
+        */
     }
     private void UpdateMouseClick()
     {
@@ -161,7 +171,7 @@ public class NodeGenerator2 : MonoBehaviour
     {
         for (int i = 0; i < connections.Count; ++i)
         {
-            Connection c = connections[i];
+            NodeGeneratorConnection c = connections[i];
             if ((c.a.transform.position - c.b.transform.position).sqrMagnitude > sqrMaxDistance)
             {
                 CreateNodeInConnection(c);
@@ -270,7 +280,7 @@ public class NodeGenerator2 : MonoBehaviour
         Vector3 dir = start - center;
         return center + dir.normalized * r;
     }
-    private void CreateNodeInConnection(Connection c)
+    private void CreateNodeInConnection(NodeGeneratorConnection c)
     {
         Vector3 newPos = c.Midpoint();
         GameObject newNode = AddNode(newPos);
@@ -278,12 +288,12 @@ public class NodeGenerator2 : MonoBehaviour
         if (c.a.GetComponent<PosNode>().isUnmoving)
         {
             float distA = (c.a.transform.position - newPos).magnitude * compressionFactor;
-            connections.Add(new Connection(c.a, newNode, distA));
+            connections.Add(new NodeGeneratorConnection(c.a, newNode, distA));
         }
         if (c.b.GetComponent<PosNode>().isUnmoving)
         {
             float distB = (c.b.transform.position - newPos).magnitude * compressionFactor;
-            connections.Add(new Connection(newNode, c.b, distB));
+            connections.Add(new NodeGeneratorConnection(newNode, c.b, distB));
         }
 
         connections.Remove(c);
@@ -335,7 +345,7 @@ public class NodeGenerator2 : MonoBehaviour
     {
         if (!drawDebugVisualizations) { return; }
 
-        foreach (Connection c in connections)
+        foreach (NodeGeneratorConnection c in connections)
         {
             Debug.DrawLine(c.a.transform.position, c.b.transform.position, new Color(0.35f, 0.35f, 0.35f, 1));
         }
@@ -369,6 +379,7 @@ public class NodeGenerator2 : MonoBehaviour
 
     private void OnDrawGizmos()
     {
+        /*
         Gizmos.color = new Color(0.7f, 0.5f, 0.1f, 0.5f);
         velocityField.DebugDrawGizmos();
         GUIStyle style = GUI.skin.label;
@@ -376,5 +387,6 @@ public class NodeGenerator2 : MonoBehaviour
         Vector3 camPos = mainCamera.transform.position;
         Vector3 labelPos = new Vector3(camPos.x - 4.3f, camPos.y - 4.4f, 0);
         Handles.Label(labelPos, "Fuel: " + ((int)fuel).ToString() + "kg    Shield: " + ((int)shield).ToString() + "%    FPS:" + (int)(fps), style);
+        */
     }
 }

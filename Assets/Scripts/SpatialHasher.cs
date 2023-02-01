@@ -45,8 +45,8 @@ public class SpatialHasher
         }
         else
         {
-            this.searchCoords = Spiral.GenerateSpiralCoords(numSideCells);
-            //this.searchCoords = SearchCoords.Generate2DSearchCoords(numSideCells);
+            //this.searchCoords = Spiral.GenerateSpiralCoords(numSideCells);
+            this.searchCoords = SearchCoords.Generate2DSearchCoords(numSideCells);
         }
     }
 
@@ -90,8 +90,6 @@ public class SpatialHasher
         List<GameObject> closest = new List<GameObject>();
         int hash = Hash(point);
         int[] hashCoords = is3D ? Utils.to3D(hash, numSideCells) : Utils.to2D(hash, numSideCells);
-
-        closest.AddRange(buckets[hash].objects);
 
         for (int i = 0; i < searchCoords.Length; ++i)
         {
@@ -150,31 +148,30 @@ public class SearchCoords
         int currentCoord = 0;
         int[] coords = new int[totalCoords];
 
-        int[,] offsets = new int[,] {
-            {0, 1},
-            {1, 0},
-            {0, -1},
-            {-1, 0},
-            {1, 1},
-            {-1, 1},
-            {1, -1},
-            {-1, -1}
-        };
+        int currentSquareSize = 0;
 
-        int currentLevel = 0;
-        int currentOffset = 0;
         while (currentCoord < totalCoords)
         {
-            if (currentOffset > 7)
+            int max = currentSquareSize;
+            int min = -max;
+            for (int i = min; i <= max; ++i)
             {
-                ++currentLevel;
-                currentOffset = 0;
+                for (int j = min; j <= max; ++j)
+                {
+                    if(i==min || j==min || i == max || j == max)
+                    {
+                        coords[currentCoord++] = Utils.to1D(i, j, sideLength);
+                        if(currentCoord == totalCoords)
+                        {
+                            return coords;
+                        }
+                    }
+                }
+
             }
-            coords[currentCoord++] = Utils.to1D(offsets[currentOffset, 0] * currentLevel,
-                offsets[currentOffset, 1] * currentLevel,
-                sideLength);
-            ++currentOffset;
+            ++currentSquareSize;
         }
+        
         return coords;
     }
     public static int[] Generate3DSearchCoords(int sideLength)
@@ -183,52 +180,33 @@ public class SearchCoords
         int currentCoord = 0;
         int[] coords = new int[totalCoords];
 
-        int[,] offsets = new int[,] {
-            { 0, 1, 0},
-            { 1, 0, 0},
-            { 0,-1, 0},
-            {-1, 0, 0},
-            { 1, 1, 0},
-            { 1,-1, 0},
-            {-1, 1, 0},
-            {-1, -1, 0},
+        int currentCubeSize = 0;
 
-            { 0, 0, 1},
-            { 0, 1, 1},
-            { 1, 0, 1},
-            { 0,-1, 1},
-            {-1, 0, 1},
-            { 1, 1, 1},
-            { 1,-1, 1},
-            {-1, 1, 1},
-            {-1,-1, 1},
-
-            { 0, 0,-1},
-            { 0, 1,-1},
-            { 1, 0,-1},
-            { 0,-1,-1},
-            {-1, 0,-1},
-            { 1, 1,-1},
-            { 1,-1,-1},
-            {-1, 1,-1},
-            {-1,-1,-1}
-        };
-
-        int currentLevel = 0;
-        int currentOffset = 0;
         while (currentCoord < totalCoords)
         {
-            if(currentOffset > 25)
+            int max = currentCubeSize;
+            int min = -max;
+            for (int i = min; i <= max; ++i)
             {
-                ++currentLevel;
-                currentOffset = 0;
+                for (int j = min; j <= max; ++j)
+                {
+                    for (int k = min; k <= max; ++k)
+                    {
+                        if (i == min || j == min || k == min || i == max || j == max || k == max)
+                        {
+                            coords[currentCoord++] = Utils.to1D(i, j, k, sideLength);
+                            if (currentCoord == totalCoords)
+                            {
+                                return coords;
+                            }
+                        }
+                    }
+                }
+
             }
-            coords[currentCoord++] = Utils.to1D(offsets[currentOffset, 0] * currentLevel,
-                offsets[currentOffset, 1] * currentLevel,
-                offsets[currentOffset, 2] * currentLevel,
-                sideLength);
-            ++currentOffset;
+            ++currentCubeSize;
         }
+
         return coords;
     }
 }
@@ -251,14 +229,20 @@ public class Spiral
         {
             while (2 * x * d < m)
             {
-                coords[currentCoord++] = x + y * sideLength;
-                if (currentCoord == totalCoords) { return coords; }
+                coords[currentCoord++] = Utils.to1D(x, y, sideLength);
+                if (currentCoord == totalCoords)
+                { 
+                    return coords; 
+                }
                 x += d;
             }
             while (2 * y * d < m)
             {
-                coords[currentCoord++] = x + y * sideLength;
-                if (currentCoord == totalCoords) { return coords; }
+                coords[currentCoord++] = Utils.to1D(x, y, sideLength);
+                if (currentCoord == totalCoords)
+                {
+                    return coords;
+                }
                 y += d;
             }
             d = -d;
