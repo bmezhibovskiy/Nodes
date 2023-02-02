@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Assertions;
@@ -9,7 +8,8 @@ public class Ship : MonoBehaviour
     public Vector3 prevPos = Vector3.zero;
     public float size = 0.15f;
 
-    public ISectorObjectModule dockedAt = null;
+    private ISectorObjectModule dockedAt = null;
+    private bool isUndocking = false;
 
     private Vector3 accel = Vector3.zero;
     private Vector3 vel = Vector3.zero;
@@ -38,6 +38,7 @@ public class Ship : MonoBehaviour
 
     public void DockAt(ISectorObjectModule dockModule)
     {
+        isUndocking = false;
         dockedAt = dockModule;
         prevPos = transform.position;
         accel = Vector3.zero;
@@ -46,9 +47,30 @@ public class Ship : MonoBehaviour
         transform.up = (transform.position - dockedAt.parent.transform.position).normalized;
     }
 
+    public void StartUndocking()
+    {
+        isUndocking = true;
+    }
+
+    public void FinishUndocking()
+    {
+        isUndocking = false;
+        dockedAt = null;
+    }
+
     public bool IsDocked()
     {
         return dockedAt != null;
+    }
+
+    public bool IsUndocking()
+    {
+        return IsDocked() && isUndocking;
+    }
+
+    public bool IsUndockingFrom(ISectorObjectModule dockModule)
+    {
+        return dockedAt == dockModule && isUndocking;
     }
 
     public void Integrate()
@@ -132,24 +154,7 @@ public class Ship : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if(IsUndocking())
-        {
-            Vector3 dist = transform.position - dockedAt.parent.transform.position;
-            transform.up = dist.normalized;
-            if (dist.magnitude < dockedAt.parent.size + size)
-            {
-                AddThrust(10f);
-            }
-            else
-            {
-                dockedAt = null;
-            }
-        }
-    }
-
-    private bool IsUndocking()
-    {
-        return IsDocked() && Input.GetKey(KeyCode.Space);
+        
     }
 
     private void IntegrateVerlet()

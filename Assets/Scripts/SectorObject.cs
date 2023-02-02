@@ -1,9 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using static SectorObjectModuleFactory;
+using static UnityEngine.RuleTile.TilingRuleOutput;
 
 public interface ISectorObjectModule
 {
@@ -112,13 +114,20 @@ public class SectorObjectModuleFactory
     private class SectorObjectDockModule : ISectorObjectModule
     {
         public SectorObject parent { get; set; }
-        public int capacity;
+        public float maxDockingSpeed;
+        public float sqrMaxDockingSpeed;
+        public float dockDistance;
+        public float undockDistance;
+        public float undockThrust;
 
-        private const float sqrMaxSafeSpeed = 0.5f * 0.5f;
         public SectorObjectDockModule(SectorObjectModuleInfo info, SectorObject parent)
         {
             this.parent = parent;
-            this.capacity = (int)info.parameters[0];
+            this.maxDockingSpeed = info.parameters[0];
+            this.sqrMaxDockingSpeed = this.maxDockingSpeed * this.maxDockingSpeed;
+            this.dockDistance = info.parameters[1];
+            this.undockDistance = this.dockDistance * 1.1f;
+            this.undockThrust = info.parameters[2];
         }
         public void UpdateGridNode(GridNode gridNode)
         {
@@ -128,11 +137,25 @@ public class SectorObjectModuleFactory
         public void UpdateShip(Ship ship)
         {
             float dt2 = Time.deltaTime * Time.deltaTime;
-            if (!ship.IsDocked() && ship.GetVel().sqrMagnitude / dt2 < sqrMaxSafeSpeed)
+            if (!ship.IsDocked() && ship.GetVel().sqrMagnitude / dt2 < sqrMaxDockingSpeed)
             {
-                if(Vector3.Distance(ship.transform.position, parent.transform.position) < parent.size + ship.size)
+                if(Vector3.Distance(ship.transform.position, parent.transform.position) < parent.size + ship.size + undockDistance)
                 {
                     ship.DockAt(this);
+                }
+            }
+
+            if (ship.IsUndockingFrom(this))
+            {
+                Vector3 dist = ship.transform.position - parent.transform.position;
+                ship.transform.up = dist.normalized;
+                if (dist.magnitude < parent.size + ship.size + undockDistance)
+                {
+                    ship.AddThrust(undockThrust);
+                }
+                else
+                {
+                    ship.FinishUndocking();
                 }
             }
         }

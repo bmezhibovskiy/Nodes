@@ -7,8 +7,8 @@
 			"name": "Pewter",
 			"connectedSectorIds": [],
 			"is3d": false,
-			"sideLength": 24.0,
-			"sideNodes": 39,
+			"sideLength": 32.0,
+			"sideNodes": 47,
 			"startPosition": {"x": 0.0, "y": 0.0, "z": 0.0},
 			"sectorObjectInfos":
 			[
@@ -34,11 +34,7 @@
 					[
 						{
 							"type": "Dock",
-							"parameters": [10]
-						},
-						{
-							"type": "NodePuller",
-							"parameters": [1.8, 0.3, 0.0]
+							"parameters": [0.4, 0.05, 12.0]
 						}
 					]
 				}

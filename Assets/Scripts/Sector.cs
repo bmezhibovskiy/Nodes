@@ -310,6 +310,13 @@ public class Sector: MonoBehaviour
                 ship.AddThrust(fspeed * 2.0f);
             }
         }
+        else
+        {
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                ship.StartUndocking();
+            }
+        }
 
         UpdateShip(playerShip);
     }
