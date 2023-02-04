@@ -85,7 +85,7 @@ public class Sector: MonoBehaviour
         this.nodeDistance = sideLength / (float)numSideNodes;
         this.nodeOffset = Vector3.up * nodeDistance;
 
-        spatialHasher = new SpatialHasher(nodeDistance * spatialHasherSizeMultiplier, sideLength * spatialHasherSizeMultiplier, is3d);
+        spatialHasher = SpatialHasher.CreateSpatialHasher(nodeDistance * spatialHasherSizeMultiplier, sideLength * spatialHasherSizeMultiplier, is3d);
 
         GenerateNodes();
         GenerateConnections();
@@ -143,7 +143,7 @@ public class Sector: MonoBehaviour
         {
             if (!borderNode.GetComponent<GridNode>().isBorder) { continue; }
 
-            List<GameObject> closest = ClosestNodes(borderNode.transform.position, true);
+            List<GameObject> closest = AllClosestNodes(borderNode.transform.position);
             foreach (GameObject closestNode in closest)
             {
                 if (!closestNode.GetComponent<GridNode>().isBorder)
@@ -154,24 +154,19 @@ public class Sector: MonoBehaviour
             }
         }
     }
-    private List<GameObject> ClosestNodes(Vector3 pos, bool returnAll = false)
-    {
-        List<GameObject> sortedNodes;
 
-        if (returnAll)
-        {
-            List<GameObject> prunedNodes = new List<GameObject>(nodes);
-            prunedNodes.RemoveAll(x => x.GetComponent<GridNode>().isDead);
-            sortedNodes = new List<GameObject>(prunedNodes);
-        }
-        else
-        {
-            sortedNodes = spatialHasher.ClosestObjects(pos, numClosestNodes);
-        }
+    private List<GameObject> ClosestNodes(Vector3 pos, int numToGet)
+    {
+        return spatialHasher.ClosestObjects(pos, numToGet);
+    }
+
+    private List<GameObject> AllClosestNodes(Vector3 pos)
+    {
+        List<GameObject> sortedNodes = new List<GameObject>(nodes);
 
         sortedNodes.Sort((a, b) => (a.transform.position - pos).sqrMagnitude.CompareTo((b.transform.position - pos).sqrMagnitude));
 
-        return returnAll ? sortedNodes : sortedNodes.Take(numClosestNodes).ToList();
+        return sortedNodes;
     }
 
     private GameObject AddShip(Vector3 pos)
@@ -180,7 +175,7 @@ public class Sector: MonoBehaviour
         newObj.transform.position = pos;
         Ship ship = newObj.AddComponent<Ship>();
         ship.prevPos = pos;
-        List<GameObject> closestNodes = ClosestNodes(pos);
+        List<GameObject> closestNodes = ClosestNodes(pos, numClosestNodes);
         ship.Rebase(closestNodes);
         return newObj;
     }
@@ -369,7 +364,7 @@ public class Sector: MonoBehaviour
 
         if (ship.ShouldRebase())
         {
-            ship.Rebase(ClosestNodes(postCollisionPosition));
+            ship.Rebase(ClosestNodes(postCollisionPosition, numClosestNodes));
         }
     }
 

@@ -14,40 +14,27 @@ public class SpatialHasher
         public List<GameObject> objects = new List<GameObject>();
     }
 
-    private float cellSize;
-    private float totalSideLength;
-    private float inverseCellSize;
-    private int numSideCells;
-    private int numCells;
-    private Bucket[] buckets;
-    private int[] searchCoords;
-    private float offset;
-    private bool is3D = false;
-
-    public SpatialHasher(float cellSize, float totalSideLength, bool is3D = false)
+    public static SpatialHasher CreateSpatialHasher(float bucketSize, float totalSideLength, bool is3D)
     {
-        this.is3D = is3D;
+        return is3D ? new SpatialHasher3D(bucketSize, totalSideLength) : new SpatialHasher2D(bucketSize, totalSideLength);
+    }
 
-        this.cellSize = cellSize;
+    protected float bucketSize;
+    protected float totalSideLength;
+    protected float inverseBucketSize;
+    protected int numSideBuckets;
+    protected float offset;
+    protected int numBuckets;
+    protected Bucket[] buckets;
+    protected int[][] shellCoords;
+
+    protected SpatialHasher(float bucketSize, float totalSideLength)
+    {
+        this.bucketSize = bucketSize;
         this.totalSideLength = totalSideLength;
+        this.inverseBucketSize = 1 / bucketSize;
+        this.numSideBuckets = (int)(totalSideLength * inverseBucketSize);
         this.offset = totalSideLength * 0.5f;
-
-        this.inverseCellSize = 1 / cellSize;
-        this.numSideCells = (int)(totalSideLength * inverseCellSize);
-        this.numCells = numSideCells * numSideCells * numSideCells;
-
-        this.buckets = new Bucket[numCells];
-        for (int i = 0; i < numCells; i++) { buckets[i] = new Bucket(); }
-
-        if (is3D)
-        {
-            this.searchCoords = SearchCoords.Generate3DSearchCoords(numSideCells);
-        }
-        else
-        {
-            //this.searchCoords = Spiral.GenerateSpiralCoords(numSideCells);
-            this.searchCoords = SearchCoords.Generate2DSearchCoords(numSideCells);
-        }
     }
 
     public void AddObject(GameObject obj)
@@ -85,169 +72,224 @@ public class SpatialHasher
         }
     }
 
-    public List<GameObject> ClosestObjects(Vector3 point, int numClosest)
+    public virtual List<GameObject> ClosestObjects(Vector3 point, int numClosest)
     {
-        List<GameObject> closest = new List<GameObject>();
-        int hash = Hash(point);
-        int[] hashCoords = is3D ? Utils.to3D(hash, numSideCells) : Utils.to2D(hash, numSideCells);
-
-        for (int i = 0; i < searchCoords.Length; ++i)
-        {
-            if (closest.Count >= numClosest)
-            {
-                break;
-            }
-            int searchCoord1D = searchCoords[i];
-            int[] searchCoord = is3D ? Utils.to3D(searchCoord1D, numSideCells) : Utils.to2D(searchCoord1D, numSideCells);
-            int nextHash = 0;
-            int nextX = hashCoords[0] + searchCoord[0];
-            int nextY = hashCoords[1] + searchCoord[1];
-            if (is3D)
-            {
-                int nextZ = hashCoords[2] + searchCoord[2];
-                nextHash = Utils.to1D(nextX, nextY, nextZ, numSideCells);
-            }
-            else
-            {
-                nextHash = Utils.to1D(nextX, nextY, numSideCells);
-            }
-            if (nextHash >= numCells || nextHash < 0)
-            {
-                continue;
-            }
-            closest.AddRange(buckets[nextHash].objects);
-        }
-
-        return closest;
+        throw new NotSupportedException();
     }
 
-    private int Hash(Vector3 point)
+    protected virtual int Hash(Vector3 point)
     {
-        int x = (int)((point.x + offset) * inverseCellSize);
-        int y = (int)((point.y + offset) * inverseCellSize);
-        int hash = 0;
-        if(is3D)
+        throw new NotSupportedException();
+    }
+}
+
+public class SpatialHasher2D: SpatialHasher
+{ 
+    
+    public SpatialHasher2D(float bucketSize, float totalSideLength) : base(bucketSize, totalSideLength)
+    {
+        this.numBuckets = numSideBuckets * numSideBuckets;
+
+        this.buckets = new Bucket[numBuckets];
+        for (int i = 0; i < numBuckets; i++) { buckets[i] = new Bucket(); }
+
+        this.shellCoords = SearchCoords.GenerateShells(false, numSideBuckets);
+    }
+
+    //To get the most accurate closest objects to the point,
+    //we need to consider every object in a shell and compare their position to the point.
+    //Otherwise, we won't get the actual closest points, and the result will be biased in a certain direction.
+    public override List<GameObject> ClosestObjects(Vector3 point, int numberOfObjectsToFetch)
+    {
+        List<GameObject> closestObjects = new List<GameObject>();
+        int[] hashCoords = Utils.to2D(Hash(point), numSideBuckets);
+        int level = 0;
+        while (closestObjects.Count < numberOfObjectsToFetch)
         {
-            int z = (int)((point.z + offset) * inverseCellSize);
-            hash = Utils.to1D(x, y, z, numSideCells);
+            List<GameObject> shellObjects = new List<GameObject>();
+            int[] shell = shellCoords[level];
+            foreach (int shellCoord1d in shell)
+            {
+                int[] shellCoord2d = Utils.to2D(shellCoord1d, numSideBuckets);
+                int[] nextBucketCoord = new int[2];
+                nextBucketCoord[0] = hashCoords[0] + shellCoord2d[0];
+                nextBucketCoord[1] = hashCoords[1] + shellCoord2d[1];
+                int nextBucketHash = Utils.to1D(nextBucketCoord[0], nextBucketCoord[1], numSideBuckets);
+                if(nextBucketHash < 0 || nextBucketHash >= numBuckets)
+                {
+                    continue;
+                }
+                shellObjects.AddRange(buckets[nextBucketHash].objects);
+            }
+
+            shellObjects.Sort((a, b) => (a.transform.position - point).sqrMagnitude.CompareTo((b.transform.position - point).sqrMagnitude));
+            
+            for (int i = 0; i < shellObjects.Count && closestObjects.Count < numberOfObjectsToFetch; i++)
+            {
+                closestObjects.Add(shellObjects[i]);
+            }
+
+            ++level;
         }
-        else
-        {
-            hash = Utils.to1D(x,y, numSideCells);
-        }
-        hash = Math.Clamp(hash, 0, numCells - 1);
+
+        return closestObjects;
+    }
+
+    protected override int Hash(Vector3 point)
+    {
+        int x = (int)((point.x + offset) * inverseBucketSize);
+        int y = (int)((point.y + offset) * inverseBucketSize);
+
+        int hash = Utils.to1D(x, y, numSideBuckets);
+        hash = Math.Clamp(hash, 0, numBuckets - 1);
+
         return hash;
     }
 }
-
-public class SearchCoords
+public class SpatialHasher3D : SpatialHasher
 {
-    public static int[] Generate2DSearchCoords(int sideLength)
+    public SpatialHasher3D(float bucketSize, float totalSideLength) : base(bucketSize, totalSideLength)
     {
-        int totalCoords = sideLength * sideLength;
-        int currentCoord = 0;
-        int[] coords = new int[totalCoords];
+        this.numBuckets = numSideBuckets * numSideBuckets * numSideBuckets;
 
-        int currentSquareSize = 0;
+        this.buckets = new Bucket[numBuckets];
+        for (int i = 0; i < numBuckets; i++) { buckets[i] = new Bucket(); }
 
-        while (currentCoord < totalCoords)
-        {
-            int max = currentSquareSize;
-            int min = -max;
-            for (int i = min; i <= max; ++i)
-            {
-                for (int j = min; j <= max; ++j)
-                {
-                    if(i==min || j==min || i == max || j == max)
-                    {
-                        coords[currentCoord++] = Utils.to1D(i, j, sideLength);
-                        if(currentCoord == totalCoords)
-                        {
-                            return coords;
-                        }
-                    }
-                }
-
-            }
-            ++currentSquareSize;
-        }
-        
-        return coords;
+        this.shellCoords = SearchCoords.GenerateShells(true, numSideBuckets);
     }
-    public static int[] Generate3DSearchCoords(int sideLength)
+
+    //To get the most accurate closest objects to the point,
+    //we need to consider every object in a shell and compare their position to the point.
+    //Otherwise, we won't get the actual closest points, and the result will be biased in a certain direction.
+
+    public override List<GameObject> ClosestObjects(Vector3 point, int numberOfObjectsToFetch)
     {
-        int totalCoords = sideLength * sideLength * sideLength;
-        int currentCoord = 0;
-        int[] coords = new int[totalCoords];
-
-        int currentCubeSize = 0;
-
-        while (currentCoord < totalCoords)
+        List<GameObject> closest = new List<GameObject>();
+        int hash = Hash(point);
+        int[] hashCoords = Utils.to3D(hash, numSideBuckets);
+        int level = 0;
+        while (closest.Count < numberOfObjectsToFetch)
         {
-            int max = currentCubeSize;
-            int min = -max;
-            for (int i = min; i <= max; ++i)
+            List<GameObject> shellObjects = new List<GameObject>();
+            int[] shell = shellCoords[level];
+            foreach (int shellCoord1d in shell)
             {
-                for (int j = min; j <= max; ++j)
+                int[] shellCoord2d = Utils.to3D(shellCoord1d, numSideBuckets);
+                int[] nextBucketCoord = new int[3];
+                nextBucketCoord[0] = hashCoords[0] + shellCoord2d[0];
+                nextBucketCoord[1] = hashCoords[1] + shellCoord2d[1];
+                nextBucketCoord[2] = hashCoords[2] + shellCoord2d[2];
+                int nextBucketHash = Utils.to1D(nextBucketCoord[0], nextBucketCoord[1], nextBucketCoord[2], numSideBuckets);
+                if (nextBucketHash < 0 || nextBucketHash >= numBuckets)
                 {
-                    for (int k = min; k <= max; ++k)
-                    {
-                        if (i == min || j == min || k == min || i == max || j == max || k == max)
-                        {
-                            coords[currentCoord++] = Utils.to1D(i, j, k, sideLength);
-                            if (currentCoord == totalCoords)
-                            {
-                                return coords;
-                            }
-                        }
-                    }
+                    continue;
                 }
-
+                shellObjects.AddRange(buckets[nextBucketHash].objects);
             }
-            ++currentCubeSize;
-        }
 
-        return coords;
+            shellObjects.Sort((a, b) => (a.transform.position - point).sqrMagnitude.CompareTo((b.transform.position - point).sqrMagnitude));
+
+            for (int i = 0; i < shellObjects.Count && closest.Count < numberOfObjectsToFetch; i++)
+            {
+                closest.Add(shellObjects[i]);
+            }
+
+            ++level;
+        }
+        return closest;
+    }
+
+    protected override int Hash(Vector3 point)
+    {
+        int x = (int)((point.x + offset) * inverseBucketSize);
+        int y = (int)((point.y + offset) * inverseBucketSize);
+        int z = (int)((point.z + offset) * inverseBucketSize);
+
+        int hash = Utils.to1D(x, y, z, numSideBuckets);
+        hash = Math.Clamp(hash, 0, numBuckets - 1);
+
+        return hash;
     }
 }
-
-//Adapted from https://stackoverflow.com/a/33639875/1864591
-public class Spiral
+public class SearchCoords
 {
-    public static int[] GenerateSpiralCoords(int sideLength)
+    public static int[][] GenerateShells(bool is3D, int numSideCells)
     {
-        int totalCoords = sideLength * sideLength;
-        int currentCoord = 0;
-        int[] coords = new int[totalCoords];
-
-        int x = 0;
-        int y = 0;
-        int d = 1;
-        int m = 1;
-
-        while (currentCoord < totalCoords)
+        int[][] shells = new int[NumTotalShells(numSideCells)][];
+        for (int i = 0; i < shells.Length; ++i)
         {
-            while (2 * x * d < m)
-            {
-                coords[currentCoord++] = Utils.to1D(x, y, sideLength);
-                if (currentCoord == totalCoords)
-                { 
-                    return coords; 
-                }
-                x += d;
-            }
-            while (2 * y * d < m)
-            {
-                coords[currentCoord++] = Utils.to1D(x, y, sideLength);
-                if (currentCoord == totalCoords)
-                {
-                    return coords;
-                }
-                y += d;
-            }
-            d = -d;
-            ++m;
+            shells[i] = is3D ? Generate3DShell(i, numSideCells) : Generate2DShell(i, numSideCells);
         }
-        return coords;
+        return shells;
+    }
+
+    private static int NumTotalShells(int numSideCells)
+    {
+        return (numSideCells + 1) / 2;
+    }
+
+    private static int[] Generate2DShell(int level, int numSideCells)
+    {
+        //Slow and inefficient brute force algorithm, because this will be precomputed
+
+        List<int> shell = new List<int>();
+
+        int max = level;
+        int min = -max;
+        for (int i = min; i <= max; ++i)
+        {
+            for (int j = min; j <= max; ++j)
+            {
+                if (i == min || j == min || i == max || j == max)
+                {
+                    shell.Add(Utils.to1D(i, j, numSideCells));
+                }
+            }
+        }
+        shell.Sort(delegate (int a, int b)
+        {
+            int[] a2d = Utils.to2D(a, numSideCells);
+            int[] b2d = Utils.to2D(b, numSideCells);
+            Vector2 aVec = new Vector2(a2d[0], a2d[1]);
+            Vector2 bVec = new Vector2(b2d[0], b2d[1]);
+            float distA = (aVec - Vector2.zero).sqrMagnitude;
+            float distB = (bVec - Vector2.zero).sqrMagnitude;
+            return distA.CompareTo(distB);
+        });
+        return shell.ToArray();
+    }
+
+    private static int[] Generate3DShell(int level, int numSideCells)
+    {
+        //Slow and inefficient brute force algorithm, because this will be precomputed
+
+        List<int> shell = new List<int>();
+
+        int max = level;
+        int min = -max;
+        for (int i = min; i <= max; ++i)
+        {
+            for (int j = min; j <= max; ++j)
+            {
+                for (int k = min; k <= max; ++k)
+                {
+                    if (i == min || j == min || k == min || i == max || j == max || k == max)
+                    {
+                        shell.Add(Utils.to1D(i, j, k, numSideCells));
+                    }
+                }
+            }
+        }
+        shell.Sort(delegate (int a, int b)
+        {
+            int[] a3d = Utils.to3D(a, numSideCells);
+            int[] b3d = Utils.to3D(b, numSideCells);
+            Vector3 aVec = new Vector3(a3d[0], a3d[1], a3d[2]);
+            Vector3 bVec = new Vector3(b3d[0], b3d[1], b3d[2]);
+            float distA = (aVec - Vector3.zero).sqrMagnitude;
+            float distB = (bVec - Vector3.zero).sqrMagnitude;
+            return distA.CompareTo(distB);
+        });
+        return shell.ToArray();
     }
 }

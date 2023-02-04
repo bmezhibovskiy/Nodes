@@ -1,5 +1,5 @@
 {
-	"startingSectorIndex": 0,
+	"startingSectorIndex": 2,
 	"sectorInfos":
 	[
 		{
@@ -70,21 +70,21 @@
 			"name": "Iron",
 			"connectedSectorIds": [],
 			"is3d": true,
-			"sideLength": 8.0,
-			"sideNodes": 11,
-			"startPosition": {"x": 0.0, "y": 0.0, "z": 0.0},
+			"sideLength": 14.0,
+			"sideNodes": 13,
+			"startPosition": {"x": -1.0, "y": -1.0, "z": 0.0},
 			"sectorObjectInfos":
 			[
 				{
 					"name": "Iron Lady",
-					"position": {"x": 2.0, "y": 2.0, "z": 0.0},
-					"size": 0.6,
+					"position": {"x": 1.0, "y": 1.0, "z": 0.0},
+					"size": 0.8,
 					"factionIndex": 0,
 					"moduleInfos":
 					[
 						{
 							"type": "NodePuller",
-							"parameters": [3.0, 3.5, 0.0]
+							"parameters": [2.5, 4.5, 0.0]
 						}
 					]
 				}

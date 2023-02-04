@@ -25,7 +25,7 @@ public class NodeGenerator2 : MonoBehaviour
     private GameObject ship;
     private List<NodeGeneratorConnection> connections = new List<NodeGeneratorConnection>();
     private VelocityField velocityField = new VelocityField();
-    private SpatialHasher spatialHasher = new SpatialHasher(nodeDistance * 1.25f, nodeDistance * (float)numSideNodes * 1.25f, is3D);
+    private SpatialHasher spatialHasher = SpatialHasher.CreateSpatialHasher(nodeDistance * 1.25f, nodeDistance * (float)numSideNodes * 1.25f, is3D);
 
     private const float maxFuel = 5000.0f;
     private float fuel = maxFuel;
