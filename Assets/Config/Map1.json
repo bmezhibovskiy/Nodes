@@ -1,5 +1,5 @@
 {
-	"startingSectorIndex": 2,
+	"startingSectorIndex": 0,
 	"sectorInfos":
 	[
 		{
@@ -21,7 +21,7 @@
 					[
 						{
 							"type": "NodePuller",
-							"parameters": [2, 1.5, 0.0]
+							"parameters": [2, 1.1, 0.0]
 						}
 					]
 				},
@@ -85,6 +85,31 @@
 						{
 							"type": "NodePuller",
 							"parameters": [2.5, 4.5, 0.0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"sectorId": 3,
+			"name": "Aluminum",
+			"connectedSectorIds": [],
+			"is3d": false,
+			"sideLength": 24.0,
+			"sideNodes": 37,
+			"startPosition": {"x": -1.0, "y": -1.0, "z": 0.0},
+			"sectorObjectInfos":
+			[
+				{
+					"name": "Foil",
+					"position": {"x": 1.0, "y": 1.0, "z": 0.0},
+					"size": 1.2,
+					"factionIndex": 0,
+					"moduleInfos":
+					[
+						{
+							"type": "NodePuller",
+							"parameters": [4.0, 0.0, 10.5]
 						}
 					]
 				}

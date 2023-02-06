@@ -54,6 +54,8 @@ public class Sector: MonoBehaviour
 
     private const int numClosestNodes = 4;
 
+    private int numDeletedNodes = 0;
+
     private static GameObject[] GenerateSectorObjects(SectorObjectInfo[] infos)
     {
         return infos.Select(delegate(SectorObjectInfo info)
@@ -236,6 +238,7 @@ public class Sector: MonoBehaviour
             if (gridNode == null || gridNode.isDead)
             {
                 spatialHasher.RemoveObject(nodeObject);
+                numDeletedNodes++;
                 return true;
             }
             return false;
@@ -251,6 +254,9 @@ public class Sector: MonoBehaviour
             NodeConnection c = connections[i];
             if ((c.a.transform.position - c.b.transform.position).sqrMagnitude > sqrMaxConnectionLength)
             {
+                if (numDeletedNodes <= 0) { return; }
+                numDeletedNodes -= 1;
+
                 CreateNodeInConnection(c);
                 --i;
             }
