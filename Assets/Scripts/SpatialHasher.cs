@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Mathematics;
 
 public class SpatiallyHashed : MonoBehaviour
 {
@@ -26,7 +27,7 @@ public class SpatialHasher
     protected float offset;
     protected int numBuckets;
     protected Bucket[] buckets;
-    protected int[][] shellCoords;
+    protected int3[][] shellCoords;
 
     protected SpatialHasher(float bucketSize, float totalSideLength)
     {
@@ -107,14 +108,10 @@ public class SpatialHasher2D: SpatialHasher
         while (closestObjects.Count < numberOfObjectsToFetch)
         {
             List<GameObject> shellObjects = new List<GameObject>();
-            int[] shell = shellCoords[level];
-            foreach (int shellCoord1d in shell)
+            int3[] shell = shellCoords[level];
+            foreach (int3 shellCoord2d in shell)
             {
-                int[] shellCoord2d = Utils.to2D(shellCoord1d, numSideBuckets);
-                int[] nextBucketCoord = new int[2];
-                nextBucketCoord[0] = hashCoords[0] + shellCoord2d[0];
-                nextBucketCoord[1] = hashCoords[1] + shellCoord2d[1];
-                int nextBucketHash = Utils.to1D(nextBucketCoord[0], nextBucketCoord[1], numSideBuckets);
+                int nextBucketHash = Utils.to1D(hashCoords[0] + shellCoord2d.x, hashCoords[1] + shellCoord2d.y, numSideBuckets);
                 if(nextBucketHash < 0 || nextBucketHash >= numBuckets)
                 {
                     continue;
@@ -171,14 +168,13 @@ public class SpatialHasher3D : SpatialHasher
         while (closest.Count < numberOfObjectsToFetch)
         {
             List<GameObject> shellObjects = new List<GameObject>();
-            int[] shell = shellCoords[level];
-            foreach (int shellCoord1d in shell)
+            int3[] shell = shellCoords[level];
+            foreach (int3 shellCoord3d in shell)
             {
-                int[] shellCoord2d = Utils.to3D(shellCoord1d, numSideBuckets);
                 int[] nextBucketCoord = new int[3];
-                nextBucketCoord[0] = hashCoords[0] + shellCoord2d[0];
-                nextBucketCoord[1] = hashCoords[1] + shellCoord2d[1];
-                nextBucketCoord[2] = hashCoords[2] + shellCoord2d[2];
+                nextBucketCoord[0] = hashCoords[0] + shellCoord3d.x;
+                nextBucketCoord[1] = hashCoords[1] + shellCoord3d.y;
+                nextBucketCoord[2] = hashCoords[2] + shellCoord3d.z;
                 int nextBucketHash = Utils.to1D(nextBucketCoord[0], nextBucketCoord[1], nextBucketCoord[2], numSideBuckets);
                 if (nextBucketHash < 0 || nextBucketHash >= numBuckets)
                 {
@@ -213,9 +209,9 @@ public class SpatialHasher3D : SpatialHasher
 }
 public class SearchCoords
 {
-    public static int[][] GenerateShells(bool is3D, int numSideCells)
+    public static int3[][] GenerateShells(bool is3D, int numSideCells)
     {
-        int[][] shells = new int[NumTotalShells(numSideCells)][];
+        int3[][] shells = new int3[NumTotalShells(numSideCells)][];
         for (int i = 0; i < shells.Length; ++i)
         {
             shells[i] = is3D ? Generate3DShell(i, numSideCells) : Generate2DShell(i, numSideCells);
@@ -228,11 +224,11 @@ public class SearchCoords
         return (numSideCells + 1) / 2;
     }
 
-    private static int[] Generate2DShell(int level, int numSideCells)
+    private static int3[] Generate2DShell(int level, int numSideCells)
     {
         //Slow and inefficient brute force algorithm, because this will be precomputed
 
-        List<int> shell = new List<int>();
+        List<int3> shell = new List<int3>();
 
         int max = level;
         int min = -max;
@@ -242,28 +238,24 @@ public class SearchCoords
             {
                 if (i == min || j == min || i == max || j == max)
                 {
-                    shell.Add(Utils.to1D(i, j, numSideCells));
+                    shell.Add(new int3(i, j, 0));
                 }
             }
         }
-        shell.Sort(delegate (int a, int b)
+        shell.Sort((int3 a, int3 b) =>
         {
-            int[] a2d = Utils.to2D(a, numSideCells);
-            int[] b2d = Utils.to2D(b, numSideCells);
-            Vector2 aVec = new Vector2(a2d[0], a2d[1]);
-            Vector2 bVec = new Vector2(b2d[0], b2d[1]);
-            float distA = (aVec - Vector2.zero).sqrMagnitude;
-            float distB = (bVec - Vector2.zero).sqrMagnitude;
+            float distA = math.distancesq((float3)a, float3.zero);
+            float distB = math.distancesq((float3)b, float3.zero);
             return distA.CompareTo(distB);
         });
         return shell.ToArray();
     }
 
-    private static int[] Generate3DShell(int level, int numSideCells)
+    private static int3[] Generate3DShell(int level, int numSideCells)
     {
         //Slow and inefficient brute force algorithm, because this will be precomputed
 
-        List<int> shell = new List<int>();
+        List<int3> shell = new List<int3>();
 
         int max = level;
         int min = -max;
@@ -275,19 +267,15 @@ public class SearchCoords
                 {
                     if (i == min || j == min || k == min || i == max || j == max || k == max)
                     {
-                        shell.Add(Utils.to1D(i, j, k, numSideCells));
+                        shell.Add(new int3(i, j, k));
                     }
                 }
             }
         }
-        shell.Sort(delegate (int a, int b)
+        shell.Sort((int3 a, int3 b) =>
         {
-            int[] a3d = Utils.to3D(a, numSideCells);
-            int[] b3d = Utils.to3D(b, numSideCells);
-            Vector3 aVec = new Vector3(a3d[0], a3d[1], a3d[2]);
-            Vector3 bVec = new Vector3(b3d[0], b3d[1], b3d[2]);
-            float distA = (aVec - Vector3.zero).sqrMagnitude;
-            float distB = (bVec - Vector3.zero).sqrMagnitude;
+            float distA = math.distancesq((float3)a, float3.zero);
+            float distB = math.distancesq((float3)b, float3.zero);
             return distA.CompareTo(distB);
         });
         return shell.ToArray();
